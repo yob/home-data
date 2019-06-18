@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'libhoney'
+require 'json'
+require 'clamp'
+
+# TODO
+# * temperature and humidity from each room
+# * on/off state of each AC?
+
+# TODO HARD
+# * temperature of hot water tank
+# * heating state of the hot water system?
+
+def die(msg)
+  $stderr.puts msg
+  exit(1)
+end
+
+class CollectData
+  def execute(inverter_ip, api_key, dataset_name)
+    response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetPowerFlowRealtimeData.fcgi"))
+
+    if response.code.to_i != 200
+      die("failed to fetch inverter data")  
+    end
+
+    data = JSON.load(response.body)
+
+    grid_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0
+    power_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0
+    generation_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0
+
+    puts "grid draw (W): #{grid_w}"
+    puts "load (W): #{power_w}"
+    puts "generation (W): #{generation_w}"
+
+    libhoney = Libhoney::Client.new(:writekey => api_key, :dataset => dataset_name)
+    ev = libhoney.event
+    ev.add({
+      "grid_draw_watts": grid_w,
+      "power_w": power_w,
+      "generation_w": generation_w,
+    })
+    ev.send
+
+    # Call close to flush any pending calls to Honeycomb
+    libhoney.close(true)
+  end
+end
+
+Clamp do
+  option "--honeycomb-api-key", "<key>", "API key", required: true, environment_variable: "HONEYCOMB_API_KEY"
+  option "--honeycomb-dataset", "<name>", "Dataset Name", required: true, environment_variable: "HONEYCOMB_DATASET"
+  option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
+
+  subcommand "collect", "send data to honeycomb" do
+
+    def execute
+      CollectData.new.execute(
+        inverter_ip,
+        honeycomb_api_key,
+        honeycomb_dataset,
+      )
+    end
+  end
+end
