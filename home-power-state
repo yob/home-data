@@ -58,11 +58,15 @@ Clamp do
   subcommand "collect", "send data to honeycomb" do
 
     def execute
-      CollectData.new.execute(
-        inverter_ip,
-        honeycomb_api_key,
-        honeycomb_dataset,
-      )
+      run_until = Time.now + 280 # nearly 5 mins
+      while Time.now < run_until
+        CollectData.new.execute(
+          inverter_ip,
+          honeycomb_api_key,
+          honeycomb_dataset,
+        )
+	sleep(20)
+      end
     end
   end
 end
