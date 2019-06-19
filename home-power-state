@@ -18,35 +18,112 @@ def die(msg)
   exit(1)
 end
 
+class SensiboPod
+
+  def initialize(data)
+    @data = data
+  end
+
+  def name
+    @data.fetch("room", {}).fetch("name", "")
+  end
+
+  def temperature
+    @data.fetch("measurements", {}).fetch("temperature", "")
+  end
+
+  def humidity
+    @data.fetch("measurements", {}).fetch("humidity", "")
+  end
+
+  def measurement_time
+    @data.fetch("measurements", {}).fetch("time", {}).fetch("time","")
+  end
+
+  def ac_on
+    @data.fetch("acState", {}).fetch("on", false)
+  end
+
+  def ac_fan_level
+    @data.fetch("acState", {}).fetch("fanLevel", "")
+  end
+
+  def ac_mode
+    @data.fetch("acState", {}).fetch("mode", "")
+  end
+
+  def ac_swing
+    @data.fetch("acState", {}).fetch("swing", "")
+  end
+
+  def namespaced_attributes
+    {
+      "#{name}.temperature" => temperature,
+      "#{name}.humidity_percent" => humidity,
+      "#{name}.measurement_time" => measurement_time,
+      "#{name}.ac_on" => ac_on,
+      "#{name}.ac_fan_level" => ac_fan_level,
+      "#{name}.ac_mode" => ac_mode,
+      "#{name}.ac_swing" => ac_swing,
+    }
+  end
+end
+
+class SensiboClient
+  def initialize(api_key)
+    @api_key = api_key
+  end
+
+  def pods
+    uri = URI("https://home.sensibo.com/api/v2/users/me/pods?fields=*&apiKey=#{@api_key}")
+    response = Net::HTTP.get_response(uri)
+
+    if response.code.to_i != 200
+      []
+    else
+      data = JSON.load(response.body)
+      result = data.fetch("result", [])
+      result.map { |item| SensiboPod.new(item) }
+    end
+  end
+end
+
 class CollectData
-  def execute(inverter_ip, api_key, dataset_name)
+
+  def execute(inverter_ip, api_key, dataset_name, sensibo_api_key)
+    libhoney = Libhoney::Client.new(:writekey => api_key, :dataset => dataset_name)
+    ev = libhoney.event
+    ev.add(inverter_data(inverter_ip))
+    ev.add(sensibo_data(sensibo_api_key))
+    ev.send
+
+    ## Call close to flush any pending calls to Honeycomb
+    libhoney.close(true)
+  end
+
+  private
+
+  def inverter_data(inverter_ip)
     response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetPowerFlowRealtimeData.fcgi"))
 
     if response.code.to_i != 200
-      die("failed to fetch inverter data")  
+      {}
+    else
+      data = JSON.load(response.body)
+
+      {
+        grid_draw_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0,
+        power_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0,
+        generation_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0,
+      }
     end
+  end
 
-    data = JSON.load(response.body)
-
-    grid_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0
-    power_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0
-    generation_w =  data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0
-
-    puts "grid draw (W): #{grid_w}"
-    puts "load (W): #{power_w}"
-    puts "generation (W): #{generation_w}"
-
-    libhoney = Libhoney::Client.new(:writekey => api_key, :dataset => dataset_name)
-    ev = libhoney.event
-    ev.add({
-      "grid_draw_watts": grid_w,
-      "power_w": power_w,
-      "generation_w": generation_w,
-    })
-    ev.send
-
-    # Call close to flush any pending calls to Honeycomb
-    libhoney.close(true)
+  def sensibo_data(api_key)
+    sensibo = SensiboClient.new(api_key)
+    sensibo.pods.inject({}) { |accum, pod|
+      accum.merge(pod.namespaced_attributes)
+    }
   end
 end
 
@@ -54,6 +131,7 @@ Clamp do
   option "--honeycomb-api-key", "<key>", "API key", required: true, environment_variable: "HONEYCOMB_API_KEY"
   option "--honeycomb-dataset", "<name>", "Dataset Name", required: true, environment_variable: "HONEYCOMB_DATASET"
   option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
+  option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
 
   subcommand "collect", "send data to honeycomb" do
 
@@ -64,6 +142,7 @@ Clamp do
           inverter_ip,
           honeycomb_api_key,
           honeycomb_dataset,
+          sensibo_api_key,
         )
         sleep(30)
       end
