@@ -65,7 +65,7 @@ Clamp do
           honeycomb_api_key,
           honeycomb_dataset,
         )
-	sleep(20)
+        sleep(30)
       end
     end
   end
