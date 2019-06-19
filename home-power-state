@@ -112,11 +112,14 @@ class CollectData
       {}
     else
       data = JSON.load(response.body)
+      grid_draw_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0
+      power_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0
+      generation_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0
 
       {
-        grid_draw_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0,
-        power_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0,
-        generation_watts: data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0,
+        grid_draw_watts: grid_draw_watts,
+        power_watts: power_watts.abs,
+        generation_watts: generation_watts,
       }
     end
   end
