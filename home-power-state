@@ -6,10 +6,6 @@ require 'json'
 require 'clamp'
 require 'time'
 
-# TODO
-# * temperature and humidity from each room
-# * on/off state of each AC?
-
 # TODO HARD
 # * temperature of hot water tank
 # * heating state of the hot water system?
