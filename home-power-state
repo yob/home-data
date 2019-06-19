@@ -4,6 +4,7 @@ require 'net/http'
 require 'libhoney'
 require 'json'
 require 'clamp'
+require 'time'
 
 # TODO
 # * temperature and humidity from each room
@@ -99,6 +100,7 @@ class CollectData
 
     ## Call close to flush any pending calls to Honeycomb
     libhoney.close(true)
+    puts "#{Time.now.iso8601} done"
   end
 
   private
