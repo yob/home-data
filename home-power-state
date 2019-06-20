@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'net/http'
-require 'libhoney'
+require "google/cloud/monitoring"
 require 'json'
 require 'clamp'
 require 'time'
@@ -57,11 +57,7 @@ class SensiboPod
     {
       "#{name}.temperature" => temperature,
       "#{name}.humidity_percent" => humidity,
-      "#{name}.measurement_time" => measurement_time,
-      "#{name}.ac_on" => ac_on,
-      "#{name}.ac_fan_level" => ac_fan_level,
-      "#{name}.ac_mode" => ac_mode,
-      "#{name}.ac_swing" => ac_swing,
+      "#{name}.ac_on" => ac_on ? 1 : 0,
     }
   end
 end
@@ -87,19 +83,44 @@ end
 
 class CollectData
 
-  def execute(inverter_ip, api_key, dataset_name, sensibo_api_key)
-    libhoney = Libhoney::Client.new(:writekey => api_key, :dataset => dataset_name)
-    ev = libhoney.event
-    ev.add(inverter_data(inverter_ip))
-    ev.add(sensibo_data(sensibo_api_key))
-    ev.send
-
-    ## Call close to flush any pending calls to Honeycomb
-    libhoney.close(true)
-    puts "#{Time.now.iso8601} done"
+  def execute(inverter_ip, sensibo_api_key)
+    inverter_data(inverter_ip).each do |name, value|
+      puts name
+      write_gauge(name, value)
+    end
+    sensibo_data(sensibo_api_key).each do |name, value|
+      puts name
+      write_gauge(name, value)
+    end
   end
 
   private
+
+  # This assumes the following two ENV vars are set:
+  #
+  # * GOOGLE_CLOUD_PROJECT=<project-slug>
+  # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
+  def write_gauge(name, value)
+    # This might have optional arguments for providing the project and credentials?
+    client = Google::Cloud::Monitoring::Metric.new
+    project_name = Google::Cloud::Monitoring::V3::MetricServiceClient.project_path(ENV.fetch("GOOGLE_CLOUD_PROJECT"))
+
+    series = Google::Monitoring::V3::TimeSeries.new
+    metric = Google::Api::Metric.new type: "custom.googleapis.com/#{name}"
+    series.metric = metric
+
+    resource = Google::Api::MonitoredResource.new type: "global"
+    series.resource = resource
+
+    point = Google::Monitoring::V3::Point.new
+    point.value = Google::Monitoring::V3::TypedValue.new double_value: value
+    now = Time.now
+    end_time = Google::Protobuf::Timestamp.new seconds: now.to_i, nanos: now.usec
+    point.interval = Google::Monitoring::V3::TimeInterval.new end_time: end_time
+    series.points << point
+
+    client.create_time_series project_name, [series]
+  end
 
   def inverter_data(inverter_ip)
     response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetPowerFlowRealtimeData.fcgi"))
@@ -129,8 +150,6 @@ class CollectData
 end
 
 Clamp do
-  option "--honeycomb-api-key", "<key>", "API key", required: true, environment_variable: "HONEYCOMB_API_KEY"
-  option "--honeycomb-dataset", "<name>", "Dataset Name", required: true, environment_variable: "HONEYCOMB_DATASET"
   option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
   option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
 
@@ -141,8 +160,6 @@ Clamp do
       while Time.now < run_until
         CollectData.new.execute(
           inverter_ip,
-          honeycomb_api_key,
-          honeycomb_dataset,
           sensibo_api_key,
         )
         sleep(30)
