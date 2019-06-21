@@ -84,12 +84,11 @@ end
 class CollectData
 
   def execute(inverter_ip, sensibo_api_key)
+    puts Time.now.iso8601
     inverter_data(inverter_ip).each do |name, value|
-      puts name
       write_gauge(name, value)
     end
     sensibo_data(sensibo_api_key).each do |name, value|
-      puts name
       write_gauge(name, value)
     end
   end
