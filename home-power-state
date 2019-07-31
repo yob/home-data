@@ -89,7 +89,7 @@ class CollectData
       write_gauge(name, value)
     end
     sensibo_data(sensibo_api_key).each do |name, value|
-      write_gauge(name, value)
+      write_gauge(name, value) unless value.nil?
     end
   end
 
@@ -100,6 +100,8 @@ class CollectData
   # * GOOGLE_CLOUD_PROJECT=<project-slug>
   # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
   def write_gauge(name, value)
+    return if value.nil?
+
     # This might have optional arguments for providing the project and credentials?
     client = Google::Cloud::Monitoring::Metric.new
     project_name = Google::Cloud::Monitoring::V3::MetricServiceClient.project_path(ENV.fetch("GOOGLE_CLOUD_PROJECT"))
