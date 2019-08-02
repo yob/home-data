@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'net/http'
-require "google/cloud/monitoring"
+require 'stackdriver_simple'
 require 'json'
 require 'clamp'
 require 'time'
@@ -100,27 +100,9 @@ class CollectData
   # * GOOGLE_CLOUD_PROJECT=<project-slug>
   # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
   def write_gauge(name, value)
-    return if value.nil?
-
-    # This might have optional arguments for providing the project and credentials?
-    client = Google::Cloud::Monitoring::Metric.new
-    project_name = Google::Cloud::Monitoring::V3::MetricServiceClient.project_path(ENV.fetch("GOOGLE_CLOUD_PROJECT"))
-
-    series = Google::Monitoring::V3::TimeSeries.new
-    metric = Google::Api::Metric.new type: "custom.googleapis.com/#{name}"
-    series.metric = metric
-
-    resource = Google::Api::MonitoredResource.new type: "global"
-    series.resource = resource
-
-    point = Google::Monitoring::V3::Point.new
-    point.value = Google::Monitoring::V3::TypedValue.new double_value: value
-    now = Time.now
-    end_time = Google::Protobuf::Timestamp.new seconds: now.to_i, nanos: now.usec
-    point.interval = Google::Monitoring::V3::TimeInterval.new end_time: end_time
-    series.points << point
-
-    client.create_time_series project_name, [series]
+    StackdriverSimple.new(
+      google_cloud_project: ENV.fetch("GOOGLE_CLOUD_PROJECT")
+    ).submit_gauge(name, value)
   end
 
   def inverter_data(inverter_ip)
