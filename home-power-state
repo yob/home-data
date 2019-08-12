@@ -83,16 +83,16 @@ end
 
 class CollectData
 
-  def execute(inverter_ip, sensibo_api_key)
+  def execute(google_cloud_project, inverter_ip, sensibo_api_key)
     puts Time.now.iso8601
     inverter_data(inverter_ip).each do |name, value|
-      write_gauge(name, value)
+      write_gauge(google_cloud_project, name, value)
     end
     meter_data(inverter_ip).each do |name, value|
-      write_gauge(name, value)
+      write_gauge(google_cloud_project, name, value)
     end
     sensibo_data(sensibo_api_key).each do |name, value|
-      write_gauge(name, value) unless value.nil?
+      write_gauge(google_cloud_project, name, value) unless value.nil?
     end
   end
 
@@ -100,11 +100,10 @@ class CollectData
 
   # This assumes the following two ENV vars are set:
   #
-  # * GOOGLE_CLOUD_PROJECT=<project-slug>
   # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
-  def write_gauge(name, value)
+  def write_gauge(google_cloud_project, name, value)
     StackdriverSimple.new(
-      google_cloud_project: ENV.fetch("GOOGLE_CLOUD_PROJECT")
+      google_cloud_project: google_cloud_project
     ).submit_gauge(name, value)
   end
 
@@ -153,6 +152,7 @@ class CollectData
 end
 
 Clamp do
+  option "--gcp-project", "<name>", "A GCP project slug", required: true, environment_variable: "GCP_PROJECT"
   option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
   option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
 
@@ -162,6 +162,7 @@ Clamp do
       run_until = Time.now + 280 # nearly 5 mins
       while Time.now < run_until
         CollectData.new.execute(
+          gcp_project,
           inverter_ip,
           sensibo_api_key,
         )
