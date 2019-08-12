@@ -88,6 +88,9 @@ class CollectData
     inverter_data(inverter_ip).each do |name, value|
       write_gauge(name, value)
     end
+    meter_data(inverter_ip).each do |name, value|
+      write_gauge(name, value)
+    end
     sensibo_data(sensibo_api_key).each do |name, value|
       write_gauge(name, value) unless value.nil?
     end
@@ -122,6 +125,21 @@ class CollectData
         power_watts: power_watts.abs,
         generation_watts: generation_watts,
         energy_day_watt_hours: energy_day_wh,
+      }
+    end
+  end
+
+  def meter_data(inverter_ip)
+    response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System"))
+
+    if response.code.to_i != 200
+      {}
+    else
+      data = JSON.load(response.body)
+      grid_voltage = data.fetch("Body", {}).fetch("Data", {}).fetch("0",{}).fetch("Voltage_AC_Phase_1", 0) || 0
+
+      {
+        grid_voltage: grid_voltage,
       }
     end
   end
