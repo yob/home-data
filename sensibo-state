@@ -83,14 +83,8 @@ end
 
 class CollectData
 
-  def execute(google_cloud_project, inverter_ip, sensibo_api_key)
+  def execute(google_cloud_project, sensibo_api_key)
     puts Time.now.iso8601
-    inverter_data(inverter_ip).each do |name, value|
-      write_gauge(google_cloud_project, name, value)
-    end
-    meter_data(inverter_ip).each do |name, value|
-      write_gauge(google_cloud_project, name, value)
-    end
     sensibo_data(sensibo_api_key).each do |name, value|
       write_gauge(google_cloud_project, name, value) unless value.nil?
     end
@@ -107,42 +101,6 @@ class CollectData
     ).submit_gauge(name, value)
   end
 
-  def inverter_data(inverter_ip)
-    response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetPowerFlowRealtimeData.fcgi"))
-
-    if response.code.to_i != 200
-      {}
-    else
-      data = JSON.load(response.body)
-      grid_draw_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Grid", 0) || 0
-      power_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_Load", 0) || 0
-      generation_watts = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("P_PV", 0) || 0
-      energy_day_wh = data.fetch("Body", {}).fetch("Data", {}).fetch("Site",{}).fetch("E_Day", 0) || 0
-
-      {
-        grid_draw_watts: grid_draw_watts,
-        power_watts: power_watts.abs,
-        generation_watts: generation_watts,
-        energy_day_watt_hours: energy_day_wh,
-      }
-    end
-  end
-
-  def meter_data(inverter_ip)
-    response = Net::HTTP.get_response(URI("http://#{inverter_ip}/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System"))
-
-    if response.code.to_i != 200
-      {}
-    else
-      data = JSON.load(response.body)
-      grid_voltage = data.fetch("Body", {}).fetch("Data", {}).fetch("0",{}).fetch("Voltage_AC_Phase_1", 0) || 0
-
-      {
-        grid_voltage: grid_voltage,
-      }
-    end
-  end
-
   def sensibo_data(api_key)
     sensibo = SensiboClient.new(api_key)
     sensibo.pods.inject({}) { |accum, pod|
@@ -153,7 +111,6 @@ end
 
 Clamp do
   option "--gcp-project", "<name>", "A GCP project slug", required: true, environment_variable: "GCP_PROJECT"
-  option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
   option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
 
   subcommand "collect", "send data to honeycomb" do
@@ -163,7 +120,6 @@ Clamp do
       while Time.now < run_until
         CollectData.new.execute(
           gcp_project,
-          inverter_ip,
           sensibo_api_key,
         )
         sleep(30)
