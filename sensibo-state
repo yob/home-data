@@ -116,7 +116,7 @@ Clamp do
   subcommand "collect", "send data to honeycomb" do
 
     def execute
-      run_until = Time.now + 280 # nearly 5 mins
+      run_until = Time.now + 260 # nearly 5 mins
       while Time.now < run_until
         CollectData.new.execute(
           gcp_project,
