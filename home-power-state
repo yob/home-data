@@ -151,10 +151,76 @@ class CollectData
   end
 end
 
+class CollectDaikinData
+
+  def execute(google_cloud_project, daikin_ip, unit_prefix)
+    puts Time.now.iso8601
+    sensor_info(daikin_ip).each do |name, value|
+      write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
+    end
+    control_info(daikin_ip).each do |name, value|
+      write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
+    end
+  end
+
+  private
+
+  # This assumes the following two ENV vars are set:
+  #
+  # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
+  def write_gauge(google_cloud_project, name, value)
+    StackdriverSimple.new(
+      google_cloud_project: google_cloud_project
+    ).submit_gauge(name, value)
+  end
+
+  def sensor_info(daikin_ip)
+    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_sensor_info"))
+
+    if response.code.to_i != 200
+      {}
+    else
+      data = daikin_decode(response.body)
+
+      {
+        inside_temp: data.fetch("htemp", "0").to_f,
+        outside_temp: data.fetch("otemp", "0").to_f,
+      }
+    end
+  end
+
+  def control_info(daikin_ip)
+    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_control_info"))
+
+    if response.code.to_i != 200
+      {}
+    else
+      data = daikin_decode(response.body)
+
+      {
+        power: data.fetch("pow", "0").to_i,
+        mode: data.fetch("mode", "0").to_i,
+        set_temp: data.fetch("stemp", "0").to_f,
+        fan_rate: data.fetch("f_rate", "0").to_i,
+        fan_dir: data.fetch("f_dir", "0").to_i,
+      }
+    end
+  end
+
+  def daikin_decode(string)
+    CGI::unescape(string).split(",").each_with_object({}) { |item, accum|
+      key, value = *item.split("=")
+      accum[key] = value
+    }
+  end
+end
+
 Clamp do
   option "--gcp-project", "<name>", "A GCP project slug", required: true, environment_variable: "GCP_PROJECT"
   option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
   option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
+  option "--daikin-ip", "<ip>", "An IP Address", required: true, environment_variable: "DAIKIN_IP"
+  option "--daikin-prefix", "<name>", "prefix daikin metrics with this string (eg kitchen, lounge)", required: true, environment_variable: "UNIT_PREFIX"
 
   subcommand "collect", "send data to honeycomb" do
 
@@ -166,7 +232,12 @@ Clamp do
           inverter_ip,
           sensibo_api_key,
         )
-        sleep(30)
+        CollectDaikinData.new.execute(
+          gcp_project,
+          daikin_ip,
+          daikin_prefix,
+        )
+        sleep(15)
       end
     end
   end
