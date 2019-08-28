@@ -15,15 +15,84 @@ def die(msg)
   exit(1)
 end
 
+class SensiboPod
+
+  def initialize(data)
+    @data = data
+  end
+
+  def name
+    @data.fetch("room", {}).fetch("name", "")
+  end
+
+  def temperature
+    @data.fetch("measurements", {}).fetch("temperature", "")
+  end
+
+  def humidity
+    @data.fetch("measurements", {}).fetch("humidity", "")
+  end
+
+  def measurement_time
+    @data.fetch("measurements", {}).fetch("time", {}).fetch("time","")
+  end
+
+  def ac_on
+    @data.fetch("acState", {}).fetch("on", false)
+  end
+
+  def ac_fan_level
+    @data.fetch("acState", {}).fetch("fanLevel", "")
+  end
+
+  def ac_mode
+    @data.fetch("acState", {}).fetch("mode", "")
+  end
+
+  def ac_swing
+    @data.fetch("acState", {}).fetch("swing", "")
+  end
+
+  def namespaced_attributes
+    {
+      "#{name}.temperature" => temperature,
+      "#{name}.humidity_percent" => humidity,
+      "#{name}.ac_on" => ac_on ? 1 : 0,
+    }
+  end
+end
+
+class SensiboClient
+  def initialize(api_key)
+    @api_key = api_key
+  end
+
+  def pods
+    uri = URI("https://home.sensibo.com/api/v2/users/me/pods?fields=*&apiKey=#{@api_key}")
+    response = Net::HTTP.get_response(uri)
+
+    if response.code.to_i != 200
+      []
+    else
+      data = JSON.load(response.body)
+      result = data.fetch("result", [])
+      result.map { |item| SensiboPod.new(item) }
+    end
+  end
+end
+
 class CollectData
 
-  def execute(google_cloud_project, inverter_ip)
+  def execute(google_cloud_project, inverter_ip, sensibo_api_key)
     puts Time.now.iso8601
     inverter_data(inverter_ip).each do |name, value|
       write_gauge(google_cloud_project, name, value)
     end
     meter_data(inverter_ip).each do |name, value|
       write_gauge(google_cloud_project, name, value)
+    end
+    sensibo_data(sensibo_api_key).each do |name, value|
+      write_gauge(google_cloud_project, name, value) unless value.nil?
     end
   end
 
@@ -74,11 +143,18 @@ class CollectData
     end
   end
 
+  def sensibo_data(api_key)
+    sensibo = SensiboClient.new(api_key)
+    sensibo.pods.inject({}) { |accum, pod|
+      accum.merge(pod.namespaced_attributes)
+    }
+  end
 end
 
 Clamp do
   option "--gcp-project", "<name>", "A GCP project slug", required: true, environment_variable: "GCP_PROJECT"
   option "--inverter-ip", "<ip>", "An IP Address", required: true, environment_variable: "INVERTER_IP"
+  option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
 
   subcommand "collect", "send data to honeycomb" do
 
@@ -88,6 +164,7 @@ Clamp do
         CollectData.new.execute(
           gcp_project,
           inverter_ip,
+          sensibo_api_key,
         )
         sleep(30)
       end
