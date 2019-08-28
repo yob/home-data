@@ -180,6 +180,9 @@ class CollectDaikinData
     control_info(daikin_ip).each do |name, value|
       write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
     end
+    power_data(daikin_ip).each do |name, value|
+      write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
+    end
   end
 
   private
@@ -223,6 +226,26 @@ class CollectDaikinData
         fan_rate: data.fetch("f_rate", "0").to_i,
         fan_dir: data.fetch("f_dir", "0").to_i,
       }
+    end
+  end
+
+  def power_data(daikin_ip)
+    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_week_power"))
+
+    if response.code.to_i != 200
+      {}
+    else
+      data = daikin_decode(response.body)
+      days = data.fetch("datas", "").split("/")
+      today_watt_hours = days.last
+
+      if today_watt_hours
+        {
+          power_watt_hours: today_watt_hours.to_i,
+        }
+      else
+        {}
+      end
     end
   end
 
