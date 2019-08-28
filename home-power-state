@@ -81,18 +81,43 @@ class SensiboClient
   end
 end
 
-class CollectData
+class CollectSensiboData
 
-  def execute(google_cloud_project, inverter_ip, sensibo_api_key)
+  def execute(google_cloud_project, sensibo_api_key)
+    puts Time.now.iso8601
+    sensibo_data(sensibo_api_key).each do |name, value|
+      write_gauge(google_cloud_project, name, value) unless value.nil?
+    end
+  end
+
+  private
+
+  # This assumes the following two ENV vars are set:
+  #
+  # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
+  def write_gauge(google_cloud_project, name, value)
+    StackdriverSimple.new(
+      google_cloud_project: google_cloud_project
+    ).submit_gauge(name, value)
+  end
+
+  def sensibo_data(api_key)
+    sensibo = SensiboClient.new(api_key)
+    sensibo.pods.inject({}) { |accum, pod|
+      accum.merge(pod.namespaced_attributes)
+    }
+  end
+end
+
+class CollectInverterData
+
+  def execute(google_cloud_project, inverter_ip)
     puts Time.now.iso8601
     inverter_data(inverter_ip).each do |name, value|
       write_gauge(google_cloud_project, name, value)
     end
     meter_data(inverter_ip).each do |name, value|
       write_gauge(google_cloud_project, name, value)
-    end
-    sensibo_data(sensibo_api_key).each do |name, value|
-      write_gauge(google_cloud_project, name, value) unless value.nil?
     end
   end
 
@@ -143,12 +168,6 @@ class CollectData
     end
   end
 
-  def sensibo_data(api_key)
-    sensibo = SensiboClient.new(api_key)
-    sensibo.pods.inject({}) { |accum, pod|
-      accum.merge(pod.namespaced_attributes)
-    }
-  end
 end
 
 class CollectDaikinData
@@ -227,9 +246,12 @@ Clamp do
     def execute
       run_until = Time.now + 260 # nearly 5 mins
       while Time.now < run_until
-        CollectData.new.execute(
+        CollectInverterData.new.execute(
           gcp_project,
           inverter_ip,
+        )
+        CollectSensiboData.new.execute(
+          gcp_project,
           sensibo_api_key,
         )
         CollectDaikinData.new.execute(
