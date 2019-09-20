@@ -170,17 +170,96 @@ class CollectInverterData
 
 end
 
+class DaikinClient
+
+  def initialize(ip:, secure: false, token: nil)
+    @ip, @secure, @token = ip, secure, token
+    @scheme = @secure ? "https" : "http"
+  end
+
+  def sensor_info
+    response = get_response("#{@scheme}://#{@ip}/aircon/get_sensor_info")
+
+    if response.code.to_i != 200
+      {}
+    else
+      daikin_decode(response.body)
+    end
+  end
+
+  def control_info
+    response = get_response("#{@scheme}://#{@ip}/aircon/get_control_info")
+
+    if response.code.to_i != 200
+      {}
+    else
+      daikin_decode(response.body)
+    end
+  end
+
+  def power_data
+    response = get_response("#{@scheme}://#{@ip}/aircon/get_week_power")
+
+    if response.code.to_i != 200
+      {}
+    else
+      daikin_decode(response.body)
+    end
+  end
+
+  private
+
+  def get_response(uri)
+    uri = URI(uri)
+    case uri.scheme
+    when "http" then
+      Net::HTTP.get_response(uri)
+    when "https" then
+			http = Net::HTTP.new(uri.host, 443)
+      http.use_ssl = true
+      # normally I'd never do this, but the daikin controllers use a self signed cert and the traffic is
+      # only over my local LAN. The risk seems low.
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      request = Net::HTTP::Get.new(uri, ImmutableHeaderKey.new("X-Daikin-uuid") => @token)
+      http.request(request) # Net::HTTPResponse object
+    else
+      raise ArgumentError, "Unrecognised URL format"
+    end
+  end
+
+  def daikin_decode(string)
+    CGI::unescape(string).split(",").each_with_object({}) { |item, accum|
+      key, value = *item.split("=")
+      accum[key] = value
+    }
+  end
+end
+
+# This is completely gross. However the capitalisaton in our "X-Daikin-uuid" is important,
+# and this hack stops net/http from changing it. Props to https://github.com/jnunemaker/httparty/issues/406
+class ImmutableHeaderKey < String
+  def to_s
+    self
+  end
+  def capitalize
+    self
+  end
+  def downcase
+    self
+  end
+end
+
 class CollectDaikinData
 
-  def execute(google_cloud_project, daikin_ip, unit_prefix)
+  def execute(google_cloud_project, daikin_client, unit_prefix)
     puts Time.now.iso8601
-    sensor_info(daikin_ip).each do |name, value|
+    sensor_info(daikin_client).each do |name, value|
       write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
     end
-    control_info(daikin_ip).each do |name, value|
+    control_info(daikin_client).each do |name, value|
       write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
     end
-    power_data(daikin_ip).each do |name, value|
+    power_data(daikin_client).each do |name, value|
       write_gauge(google_cloud_project, "daikin.#{unit_prefix}.#{name}", value)
     end
   end
@@ -196,65 +275,41 @@ class CollectDaikinData
     ).submit_gauge(name, value)
   end
 
-  def sensor_info(daikin_ip)
-    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_sensor_info"))
+  def sensor_info(daikin_client)
+    data = daikin_client.sensor_info
 
-    if response.code.to_i != 200
-      {}
-    else
-      data = daikin_decode(response.body)
-
-      {
-        inside_temp: data.fetch("htemp", "0").to_f,
-        outside_temp: data.fetch("otemp", "0").to_f,
-      }
-    end
-  end
-
-  def control_info(daikin_ip)
-    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_control_info"))
-
-    if response.code.to_i != 200
-      {}
-    else
-      data = daikin_decode(response.body)
-
-      {
-        power: data.fetch("pow", "0").to_i,
-        mode: data.fetch("mode", "0").to_i,
-        set_temp: data.fetch("stemp", "0").to_f,
-        fan_rate: data.fetch("f_rate", "0").to_i,
-        fan_dir: data.fetch("f_dir", "0").to_i,
-      }
-    end
-  end
-
-  def power_data(daikin_ip)
-    response = Net::HTTP.get_response(URI("http://#{daikin_ip}/aircon/get_week_power"))
-
-    if response.code.to_i != 200
-      {}
-    else
-      data = daikin_decode(response.body)
-      days = data.fetch("datas", "").split("/")
-      today_watt_hours = days.last
-
-      if today_watt_hours
-        {
-          power_watt_hours: today_watt_hours.to_i,
-        }
-      else
-        {}
-      end
-    end
-  end
-
-  def daikin_decode(string)
-    CGI::unescape(string).split(",").each_with_object({}) { |item, accum|
-      key, value = *item.split("=")
-      accum[key] = value
+    {
+      inside_temp: data.fetch("htemp", "0").to_f,
+      outside_temp: data.fetch("otemp", "0").to_f,
     }
   end
+
+  def control_info(daikin_client)
+    data = daikin_client.control_info
+
+    {
+      power: data.fetch("pow", "0").to_i,
+      mode: data.fetch("mode", "0").to_i,
+      set_temp: data.fetch("stemp", "0").to_f,
+      fan_rate: data.fetch("f_rate", "0").to_i,
+      fan_dir: data.fetch("f_dir", "0").to_i,
+    }
+  end
+
+  def power_data(daikin_client)
+    data = daikin_client.power_data
+    days = data.fetch("datas", "").split("/")
+    today_watt_hours = days.last
+
+    if today_watt_hours
+      {
+        power_watt_hours: today_watt_hours.to_i,
+      }
+    else
+      {}
+    end
+  end
+
 end
 
 Clamp do
@@ -263,6 +318,9 @@ Clamp do
   option "--sensibo-api-key", "<key>", "API key", required: true, environment_variable: "SENSIBO_API_KEY"
   option "--daikin-ip", "<ip>", "An IP Address", required: true, environment_variable: "DAIKIN_IP"
   option "--daikin-prefix", "<name>", "prefix daikin metrics with this string (eg kitchen, lounge)", required: true, environment_variable: "UNIT_PREFIX"
+  option "--daikin-secure-ip", "<ip>", "An IP Address", required: true, environment_variable: "DAIKIN_SECURE_IP"
+  option "--daikin-secure-prefix", "<name>", "prefix daikin metrics with this string (eg kitchen, lounge)", required: true, environment_variable: "DAIKIN_SECURE_PREFIX"
+  option "--daikin-secure-token", "<name>", "token for accessing a daikin unit over https", required: true, environment_variable: "DAIKIN_SECURE_TOKEN"
 
   subcommand "collect", "send data to honeycomb" do
 
@@ -279,8 +337,13 @@ Clamp do
         )
         CollectDaikinData.new.execute(
           gcp_project,
-          daikin_ip,
+          DaikinClient.new(ip: daikin_ip),
           daikin_prefix,
+        )
+        CollectDaikinData.new.execute(
+          gcp_project,
+          DaikinClient.new(ip: daikin_secure_ip, secure: true, token: daikin_secure_token),
+          daikin_secure_prefix,
         )
         sleep(15)
       end
