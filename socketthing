@@ -1,0 +1,73 @@
+#!/usr/bin/ruby
+
+require 'stackdriver_simple'
+require 'json'
+require 'clamp'
+
+MACS = {
+  "CC:64:A6:ED:F6:AA" => "study",
+  "F2:B0:81:51:8A:E0" => "bed1",
+  "FB:DD:03:59:E8:26" => "bed2",
+  "EF:81:7D:23:3C:74" => "lounge",
+  "C2:69:9E:BE:25:AA" => "kitchen",
+  "FD:54:A9:F0:A8:A5" => "outside",
+}
+
+class CollectBlueWalkerData
+
+  def execute(google_cloud_project)
+    STDIN.each_line do |json_data|
+      data = JSON.parse(json_data)
+      mac = data.fetch("device", {}).fetch("address", "").upcase
+      if MACS.has_key?(mac) && last_processed_over_a_minute_ago?(mac)
+        device_alias = MACS.fetch(mac)
+        temp = data.fetch("sensors",{}).fetch("temperature", 0)
+        humidity = data.fetch("sensors",{}).fetch("humidity", 0)
+        pressure = data.fetch("sensors",{}).fetch("pressure", 0)
+        voltage = data.fetch("sensors",{}).fetch("voltage", 0)
+        txpower = data.fetch("sensors",{}).fetch("txpower", 0)
+        STDERR.puts "#{mac} (#{device_alias}) temp: #{temp} humidity: #{humidity} pressure: #{pressure} voltage: #{voltage} txpower: #{txpower}"
+        write_gauge(google_cloud_project, "ruuvi.#{device_alias}.temp", temp)
+        write_gauge(google_cloud_project, "ruuvi.#{device_alias}.humidity", humidity)
+        write_gauge(google_cloud_project, "ruuvi.#{device_alias}.pressure", pressure)
+        write_gauge(google_cloud_project, "ruuvi.#{device_alias}.voltage", voltage)
+        write_gauge(google_cloud_project, "ruuvi.#{device_alias}.txpower", txpower)
+        touch_processed_at(mac)
+      end
+    end
+  end
+
+  private
+
+  def touch_processed_at(mac)
+    @last_processed_at ||= Hash.new
+    @last_processed_at[mac] = Time.now
+  end
+
+  def last_processed_over_a_minute_ago?(mac)
+    @last_processed_at ||= Hash.new
+    @last_processed_at[mac].nil? || (Time.now - @last_processed_at[mac]) > 60
+  end
+
+  # This assumes the following two ENV vars are set:
+  #
+  # * GOOGLE_APPLICATION_CREDENTIALS=<path-to-credentials>
+  def write_gauge(google_cloud_project, name, value)
+    StackdriverSimple.new(
+      google_cloud_project: google_cloud_project
+    ).submit_gauge(name, value)
+  end
+end
+
+Clamp do
+  option "--gcp-project", "<name>", "A GCP project slug", required: true, environment_variable: "GCP_PROJECT"
+
+  subcommand "collect", "send data to stackdriver" do
+
+    def execute
+      CollectBlueWalkerData.new.execute(
+        gcp_project,
+      )
+    end
+  end
+end
