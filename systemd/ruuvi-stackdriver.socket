@@ -1,0 +1,11 @@
+[Unit]
+Description=Ruuvi to Stackdriver Accept Sockets
+
+[Socket]
+ListenStream=/run/ruuvi.socket
+Accept=yes
+#ListenStream=127.0.0.1:9999
+
+[Install]
+WantedBy=sockets.target
+

@@ -1,0 +1,11 @@
+[Unit] 
+Description=Bluewalker - listening for ruuvitags
+Requires=ruuvi-stackdriver.socket
+
+[Service] 
+ExecStart=/usr/local/bin/bluewalker -ruuvi -device hci0 -json -duration -1 -unix /run/ruuvi.socket
+Restart=always
+
+
+[Install]
+WantedBy=multi-user.target

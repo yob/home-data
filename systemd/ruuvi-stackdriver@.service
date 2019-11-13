@@ -1,0 +1,15 @@
+[Unit] 
+Description=Ruuvi to Stackdriver service 
+Requires=ruuvi-stackdriver.socket
+
+[Service] 
+ExecStart=/usr/local/bin/bundle exec /home/jh/git/home-data/socketthing collect
+WorkingDirectory=/home/jh/git/home-data
+Type=simple
+StandardInput=socket 
+StandardError=journal
+TimeoutStopSec=5
+Environment=GCP_PROJECT=our-house-data
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/jh/git/home-data/credentials.json
+
+
