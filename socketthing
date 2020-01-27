@@ -33,6 +33,8 @@ class CollectBlueWalkerData
         write_gauge(google_cloud_project, "ruuvi.#{device_alias}.voltage", voltage)
         write_gauge(google_cloud_project, "ruuvi.#{device_alias}.txpower", txpower)
         touch_processed_at(mac)
+      else
+        STDERR.puts "Skipping data for #{mac} (#{MACS.fetch(mac)})"
       end
     end
   end
