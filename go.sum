@@ -1,0 +1,6 @@
+github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef h1:2JGTg6JapxP9/R33ZaagQtAM4EkkSYnIAlOG5EI8gkM=
+github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef/go.mod h1:JS7hed4L1fj0hXcyEejnW57/7LCetXggd+vwrRnYeII=
+github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd h1:/ir1dLEfIxwVVbAzyC6x0qRRMjm+lHwBE5s0gByQNwg=
+github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd/go.mod h1:EALOehq8LftWlTXjFkA/d9puGVTcjemyYu7mCW2jfow=
+github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
+github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
