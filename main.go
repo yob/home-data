@@ -1,18 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
 
 	evbus "github.com/asaskevich/EventBus"
 	daikin "github.com/buxtronix/go-daikin"
+	"github.com/tidwall/gjson"
 )
 
 const (
-	kitchen_ip = "10.1.1.110"
+	kitchen_ip  = "10.1.1.110"
+	inverter_ip = "10.1.1.69"
 )
 
 var (
@@ -40,6 +44,14 @@ func main() {
 
 	}()
 
+	// fronius plugin, one per inverter
+	wg.Add(1)
+	go func() {
+		froniusInverter(bus, inverter_ip)
+		wg.Done()
+
+	}()
+
 	// stackdriver plugin, for sending metrics to google stackdriver
 	bus.SubscribeAsync("state:broadcast:minute", stackdriverProcess, false)
 	bus.SubscribeAsync("stackdriver:submit:gauge", stackSubmitGauge, false)
@@ -60,6 +72,8 @@ func kitchenDaikin(bus evbus.Bus, address string) {
 	}
 
 	for {
+		time.Sleep(5 * time.Second)
+
 		if err := dev.GetSensorInfo(); err != nil {
 			log.Fatalf("ERROR: %v", err)
 		}
@@ -67,8 +81,50 @@ func kitchenDaikin(bus evbus.Bus, address string) {
 		bus.Publish("state:update", "kitchen.daikin.temp_inside_celcius", dev.SensorInfo.HomeTemperature.String())
 		bus.Publish("state:update", "kitchen.daikin.temp_outside_celcius", dev.SensorInfo.OutsideTemperature.String())
 		bus.Publish("state:update", "kitchen.daikin.humidity", dev.SensorInfo.Humidity.String())
+	}
+}
 
-		time.Sleep(5 * time.Second)
+func froniusInverter(bus evbus.Bus, address string) {
+	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
+	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
+
+	for {
+		time.Sleep(20 * time.Second)
+
+		resp, err := http.Get(powerFlowUrl)
+		if err != nil {
+			fmt.Printf("ERROR - froniusInverter: %v\n", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		jsonBody := buf.String()
+
+		gridDrawWatts := gjson.Get(jsonBody, "Body.Data.Site.P_Grid")
+		powerWatts := gjson.Get(jsonBody, "Body.Data.Site.P_Load")
+		generationWatts := gjson.Get(jsonBody, "Body.Data.Site.P_PV")
+		energyDayWh := gjson.Get(jsonBody, "Body.Data.Site.E_Day")
+
+		bus.Publish("state:update", "fronius.inverter.grid_draw_watts", gridDrawWatts.String())
+		bus.Publish("state:update", "fronius.inverter.power_watts", powerWatts.String())
+		bus.Publish("state:update", "fronius.inverter.generation_watts", generationWatts.String())
+		bus.Publish("state:update", "fronius.inverter.energy_day_watt_hours", energyDayWh.String())
+
+		resp, err = http.Get(meterDataUrl)
+		if err != nil {
+			fmt.Printf("ERROR - froniusInverter: %v\n", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		buf = new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		jsonBody = buf.String()
+
+		gridVoltage := gjson.Get(jsonBody, "Body.Data.0.Voltage_AC_Phase_1")
+		bus.Publish("state:update", "fronius.inverter.grid_voltage", gridVoltage.String())
 	}
 }
 
