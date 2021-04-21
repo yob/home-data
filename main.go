@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	state = map[string]string{}
+	state = sync.Map{} // map[string]string{}
 	bus   = evbus.New()
 )
 
@@ -128,23 +128,23 @@ func froniusInverter(bus evbus.Bus, address string) {
 	}
 }
 
-func stackdriverProcess(localState map[string]string) {
-	if value, ok := localState["kitchen.daikin.temp_inside_celcius"]; ok {
-		value64, err := strconv.ParseFloat(value, 8)
+func stackdriverProcess(localState sync.Map) {
+	if value, ok := localState.Load("kitchen.daikin.temp_inside_celcius"); ok {
+		value64, err := strconv.ParseFloat(value.(string), 8)
 		if err == nil {
 			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.temp_inside_celcius", value64)
 		}
 	}
 
-	if value, ok := localState["kitchen.daikin.temp_outside_celcius"]; ok {
-		value64, err := strconv.ParseFloat(value, 8)
+	if value, ok := localState.Load("kitchen.daikin.temp_outside_celcius"); ok {
+		value64, err := strconv.ParseFloat(value.(string), 8)
 		if err == nil {
 			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.temp_outside_celcius", value64)
 		}
 	}
 
-	if value, ok := localState["kitchen.daikin.humidity"]; ok {
-		value64, err := strconv.ParseFloat(value, 8)
+	if value, ok := localState.Load("kitchen.daikin.humidity"); ok {
+		value64, err := strconv.ParseFloat(value.(string), 8)
 		if err == nil {
 			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.humidity", value64)
 		}
@@ -156,11 +156,11 @@ func stackSubmitGauge(property string, value float64) {
 }
 
 func stateUpdate(property string, value string) {
-	existingValue, ok := state[property]
+	existingValue, ok := state.Load(property)
 
 	// if the property doesn't exist in the state yet, or it exists with a different value, then update it
 	if !ok || existingValue != value {
-		state[property] = value
+		state.Store(property, value)
 		fmt.Printf("set %s to %s\n", property, value)
 	} else {
 		//fmt.Printf("Skipped updating state for %s, no change in value\n", property)
