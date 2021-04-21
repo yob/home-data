@@ -5,18 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	evbus "github.com/asaskevich/EventBus"
 	daikin "github.com/buxtronix/go-daikin"
+	"github.com/dim13/unifi"
 	"github.com/tidwall/gjson"
 )
 
 const (
 	kitchen_ip  = "10.1.1.110"
 	inverter_ip = "10.1.1.69"
+	unifi_ip    = "10.1.1.2"
 )
 
 var (
@@ -52,11 +55,57 @@ func main() {
 
 	}()
 
+	// unifi plugin, one per network to detect presense of specific people
+	wg.Add(1)
+	go func() {
+		unifiPresence(bus, unifi_ip)
+		wg.Done()
+
+	}()
+
 	// stackdriver plugin, for sending metrics to google stackdriver
 	bus.SubscribeAsync("state:broadcast:minute", stackdriverProcess, false)
 	bus.SubscribeAsync("stackdriver:submit:gauge", stackSubmitGauge, false)
 
 	wg.Wait()
+}
+
+func unifiPresence(bus evbus.Bus, address string) {
+
+	var ipMap = map[string]string{
+		"10.1.1.123": "james",
+		"10.1.1.134": "andrea",
+	}
+
+	unifi_user := os.Getenv("UNIFI_USER")
+	unifi_pass := os.Getenv("UNIFI_PASS")
+	unifi_port := os.Getenv("UNIFI_PORT")
+	unifi_site := os.Getenv("UNIFI_SITE")
+	u, err := unifi.Login(unifi_user, unifi_pass, address, unifi_port, unifi_site, 5)
+	if err != nil {
+		log.Fatalf("Unifi login returned error: %v\n", err)
+	}
+	defer u.Logout()
+
+	for {
+		site, err := u.Site("default")
+		if err != nil {
+			log.Fatalf("ERROR: %v\n", err)
+		}
+		stations, err := u.Sta(site)
+		if err != nil {
+			log.Fatalf("ERROR: %v\n", err)
+		}
+
+		for _, s := range stations {
+			if stationName, ok := ipMap[s.IP]; ok {
+				lastSeen := time.Unix(s.LastSeen, 0).UTC()
+				bus.Publish("state:update", fmt.Sprintf("unifi.presence.last_seen.%s", stationName), lastSeen.Format(time.RFC3339))
+			}
+		}
+
+		time.Sleep(20 * time.Second)
+	}
 }
 
 func kitchenDaikin(bus evbus.Bus, address string) {

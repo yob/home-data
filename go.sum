@@ -2,6 +2,8 @@ github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef h1:2JGTg6JapxP
 github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef/go.mod h1:JS7hed4L1fj0hXcyEejnW57/7LCetXggd+vwrRnYeII=
 github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd h1:/ir1dLEfIxwVVbAzyC6x0qRRMjm+lHwBE5s0gByQNwg=
 github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd/go.mod h1:EALOehq8LftWlTXjFkA/d9puGVTcjemyYu7mCW2jfow=
+github.com/dim13/unifi v0.0.0-20200709055549-52998aa9c807 h1:KezIQuAxw/1d+bWhdgDH5g4DuLbdml53hm39qesY2MQ=
+github.com/dim13/unifi v0.0.0-20200709055549-52998aa9c807/go.mod h1:sUYsMkUp3+3aHx0bZ2JC9JR5FekhwRtf8AHQ/ahcmZ4=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/tidwall/gjson v1.7.4 h1:19cchw8FOxkG5mdLRkGf9jqIqEyqdZhPqW60XfyFxk8=
