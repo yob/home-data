@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,11 +12,6 @@ import (
 	evbus "github.com/asaskevich/EventBus"
 	daikin "github.com/buxtronix/go-daikin"
 	"github.com/tidwall/gjson"
-	"gitlab.com/jtaimisto/bluewalker/filter"
-	"gitlab.com/jtaimisto/bluewalker/hci"
-	"gitlab.com/jtaimisto/bluewalker/host"
-	"gitlab.com/jtaimisto/bluewalker/ruuvi"
-
 )
 
 const (
@@ -58,52 +52,11 @@ func main() {
 
 	}()
 
-	// ruuvi plugin, one to listen for any ruuvitags in bluettoth range
-	wg.Add(1)
-	go func() {
-		ruuviLoop(bus)
-		wg.Done()
-
-	}()
-
 	// stackdriver plugin, for sending metrics to google stackdriver
 	bus.SubscribeAsync("state:broadcast:minute", stackdriverProcess, false)
 	bus.SubscribeAsync("stackdriver:submit:gauge", stackSubmitGauge, false)
 
 	wg.Wait()
-}
-
-func ruuviLoop(bus evbus.Bus) {
-
-	raw, err := hci.Raw("hci0")
-	if err != nil {
-		log.Fatalf("Error while opening RAW HCI socket: %v\nAre you running as root and have you run sudo hciconfig %s down?", err, "hci0")
-	}
-
-	host := host.New(raw)
-	if err = host.Init(); err != nil {
-		log.Fatalf("Unable to initialize host: %v", err)
-	}
-
-	var filters []filter.AdFilter
-	filters = append(filters, filter.ByVendor([]byte{0x99, 0x04}))
-	reportChan, err := host.StartScanning(false, filters)
-	if err != nil {
-		log.Fatalf("Unable to start scanning: %v", err)
-	}
-	for sr := range reportChan {
-		for _, ads := range sr.Data {
-			if ads.Typ == hci.AdManufacturerSpecific && len(ads.Data) >= 2 && binary.LittleEndian.Uint16(ads.Data) == 0x0499 {
-				ruuviData, err := ruuvi.Decode(ads.Data)
-				if err != nil {
-					fmt.Printf("Unable to parse ruuvi data: %v\n", err)
-					continue
-				}
-
-				fmt.Printf("packet: %v\n", ruuviData)
-			}
-		}
-	}
 }
 
 func kitchenDaikin(bus evbus.Bus, address string) {
