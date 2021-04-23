@@ -8,3 +8,5 @@ require (
 	github.com/dim13/unifi v0.0.0-20200709055549-52998aa9c807
 	github.com/tidwall/gjson v1.7.4
 )
+
+replace github.com/buxtronix/go-daikin => github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102

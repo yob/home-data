@@ -18,6 +18,8 @@ import (
 
 const (
 	kitchen_ip  = "10.1.1.110"
+	lounge_ip   = "10.1.1.111"
+	study_ip    = "10.1.1.112"
 	inverter_ip = "10.1.1.69"
 	unifi_ip    = "10.1.1.2"
 )
@@ -42,9 +44,20 @@ func main() {
 	// daikin plugin, one per unit
 	wg.Add(1)
 	go func() {
-		kitchenDaikin(bus, kitchen_ip)
+		pollDaikin(bus, "kitchen", kitchen_ip, "")
 		wg.Done()
+	}()
 
+	wg.Add(1)
+	go func() {
+		pollDaikin(bus, "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		pollDaikin(bus, "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
+		wg.Done()
 	}()
 
 	// fronius plugin, one per inverter
@@ -108,14 +121,13 @@ func unifiPresence(bus evbus.Bus, address string) {
 	}
 }
 
-func kitchenDaikin(bus evbus.Bus, address string) {
-
-	d, err := daikin.NewNetwork(daikin.AddressOption(kitchen_ip))
+func pollDaikin(bus evbus.Bus, name string, address string, token string) {
+	d, err := daikin.NewNetwork(daikin.AddressTokenOption(address, token))
 	if err != nil {
 		log.Fatalf("ERROR: %v", err)
 	}
 
-	dev := d.Devices[kitchen_ip]
+	dev := d.Devices[address]
 	if err := dev.GetControlInfo(); err != nil {
 		log.Fatalf("ERROR: %v", err)
 	}
@@ -127,9 +139,9 @@ func kitchenDaikin(bus evbus.Bus, address string) {
 			log.Fatalf("ERROR: %v", err)
 		}
 
-		bus.Publish("state:update", "kitchen.daikin.temp_inside_celcius", dev.SensorInfo.HomeTemperature.String())
-		bus.Publish("state:update", "kitchen.daikin.temp_outside_celcius", dev.SensorInfo.OutsideTemperature.String())
-		bus.Publish("state:update", "kitchen.daikin.humidity", dev.SensorInfo.Humidity.String())
+		bus.Publish("state:update", fmt.Sprintf("%s.daikin.temp_inside_celcius", name), dev.SensorInfo.HomeTemperature.String())
+		bus.Publish("state:update", fmt.Sprintf("%s.daikin.temp_outside_celcius", name), dev.SensorInfo.OutsideTemperature.String())
+		bus.Publish("state:update", fmt.Sprintf("%s.daikin.humidity", name), dev.SensorInfo.Humidity.String())
 	}
 }
 
