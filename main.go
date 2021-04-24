@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -28,6 +29,8 @@ var (
 	state = sync.Map{} // map[string]string{}
 	bus   = evbus.New()
 )
+
+type appHandler func(http.ResponseWriter, *http.Request) (int, error)
 
 func main() {
 	var wg sync.WaitGroup
@@ -76,11 +79,86 @@ func main() {
 
 	}()
 
+	// webserver, as an alternative way to injest events
+	wg.Add(1)
+	go func() {
+		startHttpServer(bus)
+		wg.Done()
+
+	}()
+
 	// stackdriver plugin, for sending metrics to google stackdriver
 	bus.SubscribeAsync("state:broadcast:minute", stackdriverProcess, false)
 	bus.SubscribeAsync("stackdriver:submit:gauge", stackSubmitGauge, false)
 
 	wg.Wait()
+}
+
+func startHttpServer(bus evbus.Bus) {
+	http.Handle("/ruuvi", appHandler(ruuviHttpHandler))
+	http.HandleFunc("/", http.NotFound)
+	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
+}
+
+func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if status, err := fn(w, r); err != nil {
+		switch status {
+		case http.StatusBadRequest:
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case http.StatusNotFound:
+			http.NotFound(w, r)
+		case http.StatusInternalServerError:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		default:
+			// Catch any other errors we haven't explicitly handled
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+	}
+}
+
+func ruuviHttpHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return 404, nil
+	}
+
+	var addressMap = map[string]string{
+		"CC:64:A6:ED:F6:AA": "study",
+		"F2:B0:81:51:8A:E0": "bed1",
+		"FB:DD:03:59:E8:26": "bed2",
+		"EF:81:7D:23:3C:74": "lounge",
+		"C2:69:9E:BE:25:AA": "kitchen",
+		"FD:54:A9:F0:A8:A5": "outside",
+	}
+
+	defer r.Body.Close()
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return 400, fmt.Errorf("ERR: %v", err)
+	}
+	jsonBody := string(body)
+	if !gjson.Valid(jsonBody) {
+		return 400, fmt.Errorf("invalid JSON")
+	}
+
+	device_mac := gjson.Get(jsonBody, "device.address")
+
+	if ruuviName, ok := addressMap[device_mac.String()]; ok {
+		temp := gjson.Get(jsonBody, "sensors.temperature")
+		humidity := gjson.Get(jsonBody, "sensors.humidity")
+		pressure := gjson.Get(jsonBody, "sensors.pressure")
+		voltage := gjson.Get(jsonBody, "sensors.voltage")
+		txpower := gjson.Get(jsonBody, "sensors.txpower")
+
+		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), temp.String())
+		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.humidity", ruuviName), humidity.String())
+		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.pressure", ruuviName), pressure.String())
+		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.voltage", ruuviName), voltage.String())
+		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.txpower", ruuviName), txpower.String())
+	}
+
+	fmt.Fprintf(w, "OK")
+	return 200, nil
 }
 
 func unifiPresence(bus evbus.Bus, address string) {
