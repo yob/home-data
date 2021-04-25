@@ -202,12 +202,14 @@ func unifiPresence(bus evbus.Bus, address string) {
 func pollDaikin(bus evbus.Bus, name string, address string, token string) {
 	d, err := daikin.NewNetwork(daikin.AddressTokenOption(address, token))
 	if err != nil {
-		log.Fatalf("ERROR: %v", err)
+		fmt.Printf("ERROR: %v", err)
+		return
 	}
 
 	dev := d.Devices[address]
 	if err := dev.GetControlInfo(); err != nil {
-		log.Fatalf("ERROR: %v", err)
+		fmt.Printf("ERROR: %v\n", err)
+		return
 	}
 
 	for {
