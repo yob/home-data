@@ -123,12 +123,12 @@ func ruuviHttpHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 	}
 
 	var addressMap = map[string]string{
-		"CC:64:A6:ED:F6:AA": "study",
-		"F2:B0:81:51:8A:E0": "bed1",
-		"FB:DD:03:59:E8:26": "bed2",
-		"EF:81:7D:23:3C:74": "lounge",
-		"C2:69:9E:BE:25:AA": "kitchen",
-		"FD:54:A9:F0:A8:A5": "outside",
+		"cc:64:a6:ed:f6:aa": "study",
+		"f2:b0:81:51:8a:e0": "bed1",
+		"fb:dd:03:59:e8:26": "bed2",
+		"ef:81:7d:23:3c:74": "lounge",
+		"c2:69:9e:be:25:aa": "kitchen",
+		"fd:54:a9:f0:a8:a5": "outside",
 	}
 
 	defer r.Body.Close()
