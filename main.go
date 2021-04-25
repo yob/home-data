@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,18 +12,24 @@ import (
 	"sync"
 	"time"
 
+	monitoring "cloud.google.com/go/monitoring/apiv3"
 	evbus "github.com/asaskevich/EventBus"
 	daikin "github.com/buxtronix/go-daikin"
 	"github.com/dim13/unifi"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/tidwall/gjson"
+	metricpb "google.golang.org/genproto/googleapis/api/metric"
+	monitoredrespb "google.golang.org/genproto/googleapis/api/monitoredres"
+	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
 const (
-	kitchen_ip  = "10.1.1.110"
-	lounge_ip   = "10.1.1.111"
-	study_ip    = "10.1.1.112"
-	inverter_ip = "10.1.1.69"
-	unifi_ip    = "10.1.1.2"
+	kitchen_ip      = "10.1.1.110"
+	lounge_ip       = "10.1.1.111"
+	study_ip        = "10.1.1.112"
+	inverter_ip     = "10.1.1.69"
+	unifi_ip        = "10.1.1.2"
+	googleProjectID = "our-house-data"
 )
 
 var (
@@ -283,17 +290,49 @@ func stackdriverProcess(localState sync.Map) {
 			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.temp_outside_celcius", value64)
 		}
 	}
-
-	if value, ok := localState.Load("kitchen.daikin.humidity"); ok {
-		value64, err := strconv.ParseFloat(value.(string), 8)
-		if err == nil {
-			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.humidity", value64)
-		}
-	}
 }
 
 func stackSubmitGauge(property string, value float64) {
-	fmt.Printf("TODO: submit to stackdriver %s %v\n", property, value)
+	metricType := fmt.Sprintf("custom.googleapis.com/%s", property)
+	ctx := context.Background()
+	c, err := monitoring.NewMetricClient(ctx)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err)
+		return
+	}
+	now := &timestamp.Timestamp{
+		Seconds: time.Now().Unix(),
+	}
+	req := &monitoringpb.CreateTimeSeriesRequest{
+		Name: "projects/" + googleProjectID,
+		TimeSeries: []*monitoringpb.TimeSeries{{
+			Metric: &metricpb.Metric{
+				Type: metricType,
+			},
+			Resource: &monitoredrespb.MonitoredResource{
+				Type: "global",
+			},
+			Points: []*monitoringpb.Point{{
+				Interval: &monitoringpb.TimeInterval{
+					StartTime: now,
+					EndTime:   now,
+				},
+				Value: &monitoringpb.TypedValue{
+					Value: &monitoringpb.TypedValue_DoubleValue{
+						DoubleValue: value,
+					},
+				},
+			}},
+		}},
+	}
+	fmt.Printf("Wrote metric to stackdriver: %+v\n", req)
+
+	err = c.CreateTimeSeries(ctx, req)
+	if err != nil {
+		fmt.Printf("could not write time series value, %v ", err)
+		return
+	}
+	return
 }
 
 func stateUpdate(property string, value string) {
