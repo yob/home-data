@@ -13,7 +13,6 @@ import (
 	"time"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3"
-	evbus "github.com/asaskevich/EventBus"
 	daikin "github.com/buxtronix/go-daikin"
 	"github.com/dim13/unifi"
 	timestamp "github.com/golang/protobuf/ptypes/timestamp"
@@ -33,82 +32,73 @@ const (
 )
 
 var (
-	state = sync.Map{} // map[string]string{}
-	bus   = evbus.New()
+	state  = sync.Map{} // map[string]string{}
+	pubsub = NewPubsub()
 )
 
-type appHandler func(http.ResponseWriter, *http.Request) (int, error)
+type appHandler func(http.ResponseWriter, *http.Request, chan PubsubEvent) (int, error)
 
 func main() {
-	var wg sync.WaitGroup
 
-	bus.SubscribeAsync("state:update", stateUpdate, false)
-
-	wg.Add(1)
+	// update the shared state when attributes change
 	go func() {
-		perodicStateBroadcast(bus)
-		wg.Done()
+		ch_state_update := pubsub.Subscribe("state:update")
+		for elem := range ch_state_update {
+			stateUpdate(elem.key, elem.value)
+		}
+	}()
 
+	// send data to stack driver every minute
+	go func() {
+		ch_every_minute := pubsub.Subscribe("every:minute")
+		for _ = range ch_every_minute {
+			stackdriverProcess(state)
+		}
+	}()
+
+	// trigger an event that anyone can listen to if they want to run code every minute
+	go func() {
+		everyMinuteEvent(pubsub.PublishChannel())
 	}()
 
 	// daikin plugin, one per unit
-	wg.Add(1)
 	go func() {
-		pollDaikin(bus, "kitchen", kitchen_ip, "")
-		wg.Done()
+		pollDaikin(pubsub.PublishChannel(), "kitchen", kitchen_ip, "")
 	}()
-
-	wg.Add(1)
 	go func() {
-		pollDaikin(bus, "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
-		wg.Done()
+		pollDaikin(pubsub.PublishChannel(), "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
 	}()
-
-	wg.Add(1)
 	go func() {
-		pollDaikin(bus, "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
-		wg.Done()
+		pollDaikin(pubsub.PublishChannel(), "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
 	}()
 
 	// fronius plugin, one per inverter
-	wg.Add(1)
 	go func() {
-		froniusInverter(bus, inverter_ip)
-		wg.Done()
-
+		froniusInverter(pubsub.PublishChannel(), inverter_ip)
 	}()
 
 	// unifi plugin, one per network to detect presense of specific people
-	wg.Add(1)
 	go func() {
-		unifiPresence(bus, unifi_ip)
-		wg.Done()
-
+		unifiPresence(pubsub.PublishChannel(), unifi_ip)
 	}()
 
 	// webserver, as an alternative way to injest events
-	wg.Add(1)
 	go func() {
-		startHttpServer(bus)
-		wg.Done()
-
+		startHttpServer()
 	}()
 
-	// stackdriver plugin, for sending metrics to google stackdriver
-	bus.SubscribeAsync("state:broadcast:minute", stackdriverProcess, false)
-	bus.SubscribeAsync("stackdriver:submit:gauge", stackSubmitGauge, false)
-
-	wg.Wait()
+	// loop forever, shuffling events between goroutines
+	pubsub.Run()
 }
 
-func startHttpServer(bus evbus.Bus) {
+func startHttpServer() {
 	http.Handle("/ruuvi", appHandler(ruuviHttpHandler))
 	http.HandleFunc("/", http.NotFound)
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
 }
 
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if status, err := fn(w, r); err != nil {
+	if status, err := fn(w, r, pubsub.PublishChannel()); err != nil {
 		switch status {
 		case http.StatusBadRequest:
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -123,7 +113,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ruuviHttpHandler(w http.ResponseWriter, r *http.Request) (int, error) {
+func ruuviHttpHandler(w http.ResponseWriter, r *http.Request, publish chan PubsubEvent) (int, error) {
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return 404, nil
@@ -157,18 +147,33 @@ func ruuviHttpHandler(w http.ResponseWriter, r *http.Request) (int, error) {
 		voltage := gjson.Get(jsonBody, "sensors.voltage")
 		txpower := gjson.Get(jsonBody, "sensors.txpower")
 
-		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), temp.String())
-		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.humidity", ruuviName), humidity.String())
-		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.pressure", ruuviName), pressure.String())
-		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.voltage", ruuviName), voltage.String())
-		bus.Publish("state:update", fmt.Sprintf("ruuvi.%s.txpower", ruuviName), txpower.String())
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), value: temp.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("ruuvi.%s.humidity", ruuviName), value: humidity.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("ruuvi.%s.pressure", ruuviName), value: pressure.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("ruuvi.%s.voltage", ruuviName), value: voltage.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("ruuvi.%s.txpower", ruuviName), value: txpower.String()},
+		}
 	}
 
 	fmt.Fprintf(w, "OK")
 	return 200, nil
 }
 
-func unifiPresence(bus evbus.Bus, address string) {
+func unifiPresence(publish chan PubsubEvent, address string) {
 
 	var ipMap = map[string]string{
 		"10.1.1.123": "james",
@@ -198,7 +203,10 @@ func unifiPresence(bus evbus.Bus, address string) {
 		for _, s := range stations {
 			if stationName, ok := ipMap[s.IP]; ok {
 				lastSeen := time.Unix(s.LastSeen, 0).UTC()
-				bus.Publish("state:update", fmt.Sprintf("unifi.presence.last_seen.%s", stationName), lastSeen.Format(time.RFC3339))
+				publish <- PubsubEvent{
+					topic: "state:update",
+					data:  KeyValueData{key: fmt.Sprintf("unifi.presence.last_seen.%s", stationName), value: lastSeen.Format(time.RFC3339)},
+				}
 			}
 		}
 
@@ -206,7 +214,7 @@ func unifiPresence(bus evbus.Bus, address string) {
 	}
 }
 
-func pollDaikin(bus evbus.Bus, name string, address string, token string) {
+func pollDaikin(publish chan PubsubEvent, name string, address string, token string) {
 	d, err := daikin.NewNetwork(daikin.AddressTokenOption(address, token))
 	if err != nil {
 		fmt.Printf("ERROR: %v", err)
@@ -226,13 +234,22 @@ func pollDaikin(bus evbus.Bus, name string, address string, token string) {
 			log.Fatalf("ERROR: %v", err)
 		}
 
-		bus.Publish("state:update", fmt.Sprintf("%s.daikin.temp_inside_celcius", name), dev.SensorInfo.HomeTemperature.String())
-		bus.Publish("state:update", fmt.Sprintf("%s.daikin.temp_outside_celcius", name), dev.SensorInfo.OutsideTemperature.String())
-		bus.Publish("state:update", fmt.Sprintf("%s.daikin.humidity", name), dev.SensorInfo.Humidity.String())
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("%s.daikin.temp_inside_celcius", name), value: dev.SensorInfo.HomeTemperature.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("%s.daikin.temp_outside_celcius", name), value: dev.SensorInfo.OutsideTemperature.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: fmt.Sprintf("%s.daikin.humidity", name), value: dev.SensorInfo.Humidity.String()},
+		}
 	}
 }
 
-func froniusInverter(bus evbus.Bus, address string) {
+func froniusInverter(publish chan PubsubEvent, address string) {
 	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
 	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
 
@@ -255,10 +272,22 @@ func froniusInverter(bus evbus.Bus, address string) {
 		generationWatts := gjson.Get(jsonBody, "Body.Data.Site.P_PV")
 		energyDayWh := gjson.Get(jsonBody, "Body.Data.Site.E_Day")
 
-		bus.Publish("state:update", "fronius.inverter.grid_draw_watts", gridDrawWatts.String())
-		bus.Publish("state:update", "fronius.inverter.power_watts", powerWatts.String())
-		bus.Publish("state:update", "fronius.inverter.generation_watts", generationWatts.String())
-		bus.Publish("state:update", "fronius.inverter.energy_day_watt_hours", energyDayWh.String())
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: "fronius.inverter.grid_draw_watts", value: gridDrawWatts.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: "fronius.inverter.power_watts", value: powerWatts.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: "fronius.inverter.generation_watts", value: generationWatts.String()},
+		}
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: "fronius.inverter.energy_day_watt_hours", value: energyDayWh.String()},
+		}
 
 		resp, err = http.Get(meterDataUrl)
 		if err != nil {
@@ -272,22 +301,29 @@ func froniusInverter(bus evbus.Bus, address string) {
 		jsonBody = buf.String()
 
 		gridVoltage := gjson.Get(jsonBody, "Body.Data.0.Voltage_AC_Phase_1")
-		bus.Publish("state:update", "fronius.inverter.grid_voltage", gridVoltage.String())
+		publish <- PubsubEvent{
+			topic: "state:update",
+			data:  KeyValueData{key: "fronius.inverter.grid_voltage", value: gridVoltage.String()},
+		}
 	}
 }
 
+// TODO submit more gauges. Maybe we need a config file or something to list them?
 func stackdriverProcess(localState sync.Map) {
+	fmt.Printf("in stackdriverProcess\n")
 	if value, ok := localState.Load("kitchen.daikin.temp_inside_celcius"); ok {
 		value64, err := strconv.ParseFloat(value.(string), 8)
 		if err == nil {
-			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.temp_inside_celcius", value64)
+			stackSubmitGauge("kitchen.daikin.temp_inside_celcius", value64)
 		}
+	} else {
+		fmt.Printf("- else\n")
 	}
 
 	if value, ok := localState.Load("kitchen.daikin.temp_outside_celcius"); ok {
 		value64, err := strconv.ParseFloat(value.(string), 8)
 		if err == nil {
-			bus.Publish("stackdriver:submit:gauge", "kitchen.daikin.temp_outside_celcius", value64)
+			stackSubmitGauge("kitchen.daikin.temp_outside_celcius", value64)
 		}
 	}
 }
@@ -347,12 +383,15 @@ func stateUpdate(property string, value string) {
 	}
 }
 
-func perodicStateBroadcast(bus evbus.Bus) {
+func everyMinuteEvent(publish chan PubsubEvent) {
 	lastBroadcast := time.Now()
 
 	for {
 		if time.Now().After(lastBroadcast.Add(time.Second * 60)) {
-			bus.Publish("state:broadcast:minute", state)
+			publish <- PubsubEvent{
+				topic: "every:minute",
+				data:  KeyValueData{key: "now", value: time.Now().Format(time.RFC3339)},
+			}
 			lastBroadcast = time.Now()
 		}
 		time.Sleep(1 * time.Second)
