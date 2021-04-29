@@ -3,8 +3,8 @@ package stackdriver
 import (
 	"context"
 	"fmt"
-	"sync"
 	"strconv"
+	"sync"
 	"time"
 
 	pubsub "github.com/yob/home-data/pubsub"
@@ -89,4 +89,3 @@ func stackSubmitGauge(property string, value float64) {
 	}
 	return
 }
-
