@@ -1,4 +1,4 @@
-package main
+package pubsub
 
 import (
 	"sync"
@@ -17,13 +17,13 @@ type Pubsub struct {
 }
 
 type PubsubEvent struct {
-	topic string
-	data  KeyValueData
+	Topic string
+	Data  KeyValueData
 }
 
 type KeyValueData struct {
-	key   string
-	value string
+	Key   string
+	Value string
 }
 
 func NewPubsub() *Pubsub {
@@ -55,8 +55,8 @@ func (ps *Pubsub) Run() {
 				continue
 			}
 			ps.mu.RLock()
-			for _, ch := range ps.subs[event.topic] {
-				ch <- event.data
+			for _, ch := range ps.subs[event.Topic] {
+				ch <- event.Data
 			}
 			ps.mu.RUnlock()
 		case <-time.After(10 * time.Millisecond):
