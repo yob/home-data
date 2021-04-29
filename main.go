@@ -30,7 +30,7 @@ var (
 	pubsub = pub.NewPubsub()
 )
 
-type appHandler func(http.ResponseWriter, *http.Request, chan pub.PubsubEvent) (int, error)
+type appHandler func(http.ResponseWriter, *http.Request) (int, error)
 
 func main() {
 
@@ -71,7 +71,18 @@ func main() {
 
 	// unifi plugin, one per network to detect presense of specific people
 	go func() {
-		unifi.Poll(pubsub.PublishChannel(), unifi_ip, os.Getenv("UNIFI_USER"), os.Getenv("UNIFI_PASS"), os.Getenv("UNIFI_PORT"), os.Getenv("UNIFI_SITE"))
+		config := unifi.Config{
+			Address:   unifi_ip,
+			UnifiUser: os.Getenv("UNIFI_USER"),
+			UnifiPass: os.Getenv("UNIFI_PASS"),
+			UnifiPort: os.Getenv("UNIFI_PORT"),
+			UnifiSite: os.Getenv("UNIFI_SITE"),
+			IpMap: map[string]string{
+				"10.1.1.123": "james",
+				"10.1.1.134": "andrea",
+			},
+		}
+		unifi.Poll(pubsub.PublishChannel(), config)
 	}()
 
 	// webserver, as an alternative way to injest events
@@ -84,13 +95,23 @@ func main() {
 }
 
 func startHttpServer() {
-	http.Handle("/ruuvi", appHandler(ruuvi.HttpHandler))
+	var addressMap = map[string]string{
+		"cc:64:a6:ed:f6:aa": "study",
+		"f2:b0:81:51:8a:e0": "bed1",
+		"fb:dd:03:59:e8:26": "bed2",
+		"ef:81:7d:23:3c:74": "lounge",
+		"c2:69:9e:be:25:aa": "kitchen",
+		"fd:54:a9:f0:a8:a5": "outside",
+	}
+
+	ruuviAdapter := ruuvi.NewRuuviAdapter(pubsub.PublishChannel(), addressMap)
+	http.Handle("/ruuvi", appHandler(ruuviAdapter.HttpHandler))
 	http.HandleFunc("/", http.NotFound)
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
 }
 
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if status, err := fn(w, r, pubsub.PublishChannel()); err != nil {
+	if status, err := fn(w, r); err != nil {
 		switch status {
 		case http.StatusBadRequest:
 			http.Error(w, err.Error(), http.StatusBadRequest)
