@@ -37,7 +37,7 @@ func processEvent(localState *sync.Map, stateMap map[string]string) {
 				stackSubmitGauge(stackdriverMetricName, value64)
 			}
 		} else {
-			fmt.Printf("*** failed to read kitchen.daikin.temp_inside_celcius from state\n")
+			fmt.Printf("*** failed to read %s from state\n", stateKey)
 		}
 	}
 }
