@@ -17,4 +17,4 @@ require (
 	google.golang.org/genproto v0.0.0-20210423144448-3a41ef94ed2b
 )
 
-replace github.com/buxtronix/go-daikin => github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102
+replace github.com/buxtronix/go-daikin => github.com/yob/go-daikin v0.0.0-20210501022443-1ff7469ffc3c
