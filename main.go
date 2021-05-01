@@ -45,7 +45,21 @@ func main() {
 	// send data to stack driver every minute
 	go func() {
 		ch_every_minute := pubsub.Subscribe("every:minute")
-		stackdriver.Process(googleProjectID, &state, ch_every_minute)
+		stateMap := map[string]string{
+			"daikin.kitchen.temp_inside_celcius":  "daikin.kitchen.inside_temp",
+			"daikin.kitchen.temp_outside_celcius": "daikin.kitchen.outside_temp",
+			"daikin.kitchen.power":                "daikin.kitchen.power",
+			"daikin.kitchen.watt_hours_today":     "daikin.kitchen.power_watt_hours",
+			"daikin.lounge.temp_inside_celcius":   "daikin.lounge.inside_temp",
+			"daikin.lounge.temp_outside_celcius":  "daikin.lounge.outside_temp",
+			"daikin.lounge.power":                 "daikin.lounge.power",
+			"daikin.lounge.watt_hours_today":      "daikin.lounge.power_watt_hours",
+			"daikin.study.temp_inside_celcius":    "daikin.study.inside_temp",
+			"daikin.study.temp_outside_celcius":   "daikin.study.outside_temp",
+			"daikin.study.power":                  "daikin.study.power",
+			"daikin.study.watt_hours_today":       "daikin.study.power_watt_hours",
+		}
+		stackdriver.Process(googleProjectID, &state, stateMap, ch_every_minute)
 	}()
 
 	// trigger an event that anyone can listen to if they want to run code every minute

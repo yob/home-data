@@ -21,28 +21,23 @@ var (
 	googleProjectID = ""
 )
 
-func Process(googleProject string, localState *sync.Map, ch_every_minute <-chan pubsub.KeyValueData) {
+func Process(googleProject string, localState *sync.Map, stateMap map[string]string, ch_every_minute <-chan pubsub.KeyValueData) {
 	googleProjectID = googleProject
 	for _ = range ch_every_minute {
-		processEvent(localState)
+		processEvent(localState, stateMap)
 	}
 }
 
-// TODO submit more gauges. Maybe we need a config file or something to list them?
-func processEvent(localState *sync.Map) {
-	if value, ok := localState.Load("kitchen.daikin.temp_inside_celcius"); ok {
-		value64, err := strconv.ParseFloat(value.(string), 8)
-		if err == nil {
-			stackSubmitGauge("kitchen.daikin.temp_inside_celcius", value64)
-		}
-	} else {
-		fmt.Printf("*** failed to read kitchen.daikin.temp_inside_celcius from state\n")
-	}
+func processEvent(localState *sync.Map, stateMap map[string]string) {
 
-	if value, ok := localState.Load("kitchen.daikin.temp_outside_celcius"); ok {
-		value64, err := strconv.ParseFloat(value.(string), 8)
-		if err == nil {
-			stackSubmitGauge("kitchen.daikin.temp_outside_celcius", value64)
+	for stateKey, stackdriverMetricName := range stateMap {
+		if value, ok := localState.Load(stateKey); ok {
+			value64, err := strconv.ParseFloat(value.(string), 8)
+			if err == nil {
+				stackSubmitGauge(stackdriverMetricName, value64)
+			}
+		} else {
+			fmt.Printf("*** failed to read kitchen.daikin.temp_inside_celcius from state\n")
 		}
 	}
 }
