@@ -3,7 +3,9 @@ package fronius
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -29,7 +31,9 @@ func Poll(publish chan pubsub.PubsubEvent, address string) {
 		jsonBody := buf.String()
 
 		gridDrawWatts := gjson.Get(jsonBody, "Body.Data.Site.P_Grid")
-		powerWatts := gjson.Get(jsonBody, "Body.Data.Site.P_Load")
+		// the type shenanigans are ugly, but P_Load comes back as negative and I find it more intuitive
+		// to report it as positive number. "How many watts is the site using right now"
+		powerWatts := math.Abs(gjson.Get(jsonBody, "Body.Data.Site.P_Load").Float())
 		generationWatts := gjson.Get(jsonBody, "Body.Data.Site.P_PV")
 		energyDayWh := gjson.Get(jsonBody, "Body.Data.Site.E_Day")
 
@@ -39,7 +43,7 @@ func Poll(publish chan pubsub.PubsubEvent, address string) {
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.power_watts", Value: powerWatts.String()},
+			Data:  pubsub.KeyValueData{Key: "fronius.inverter.power_watts", Value: strconv.FormatFloat(powerWatts, 'f', -1, 64)},
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
