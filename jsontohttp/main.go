@@ -85,6 +85,8 @@ func worker(jsonObjects <-chan string, wg *sync.WaitGroup, targetUrl string) {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 			continue
 		}
+		resp.Body.Close()
+
 		if resp.StatusCode != 200 {
 			fmt.Fprintf(os.Stderr, "ERROR: non-200 response (%d)\n", resp.StatusCode)
 			continue
