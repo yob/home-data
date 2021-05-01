@@ -18,3 +18,5 @@ require (
 )
 
 replace github.com/buxtronix/go-daikin => github.com/yob/go-daikin v0.0.0-20210501022443-1ff7469ffc3c
+
+replace github.com/dim13/unifi => github.com/mbee/unifi v0.0.0-20200530115058-a1f8d620af63
