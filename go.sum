@@ -56,6 +56,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:ma
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dim13/unifi v0.0.0-20200709055549-52998aa9c807 h1:KezIQuAxw/1d+bWhdgDH5g4DuLbdml53hm39qesY2MQ=
 github.com/dim13/unifi v0.0.0-20200709055549-52998aa9c807/go.mod h1:sUYsMkUp3+3aHx0bZ2JC9JR5FekhwRtf8AHQ/ahcmZ4=
+github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866 h1:uYPdQbDzL4HZXxy65I/cNFvqPsBO2nX9+SyMvioo8m0=
+github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866/go.mod h1:63WdsSsCuAkXqmyXjgalxIsUEi/XJxhsClQF5/86KWI=
 github.com/envoyproxy/go-control-plane v0.9.0/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
 github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1mIlRU8Am5FuJP05cCM98=
