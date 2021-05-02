@@ -1,12 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"sync"
-	"time"
+
+	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/statebus"
+	"github.com/yob/home-data/core/timers"
 
 	"github.com/yob/home-data/adapters/daikin"
 	"github.com/yob/home-data/adapters/fronius"
@@ -36,19 +38,18 @@ func main() {
 
 	// all log messages printed via a single goroutine
 	go func() {
-		ch_log := pubsub.Subscribe("log:new")
-		for event := range ch_log {
-			fmt.Printf("%s: %s\n", event.Key, event.Value)
-		}
+		logging.Init(pubsub)
+	}()
+
+	// trigger events at reliable intervals for anyone can listen to if they want to run code
+	// regularly
+	go func() {
+		timers.Init(pubsub)
 	}()
 
 	// update the shared state when attributes change
 	go func() {
-		ch_state_update := pubsub.Subscribe("state:update")
-		ch_publish := pubsub.PublishChannel()
-		for elem := range ch_state_update {
-			stateUpdate(ch_publish, elem.Key, elem.Value)
-		}
+		statebus.Init(pubsub, &state)
 	}()
 
 	// send data to stack driver every minute
@@ -98,11 +99,6 @@ func main() {
 			"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
 		}
 		stackdriver.Process(pubsub, googleProjectID, &state, stateMap)
-	}()
-
-	// trigger an event that anyone can listen to if they want to run code every minute
-	go func() {
-		everyMinuteEvent(pubsub.PublishChannel())
 	}()
 
 	// daikin plugin, one per unit
@@ -176,37 +172,4 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		}
 	}
-}
-
-func stateUpdate(publish chan pub.PubsubEvent, property string, value string) {
-	existingValue, ok := state.Load(property)
-
-	// if the property doesn't exist in the state yet, or it exists with a different value, then update it
-	if !ok || existingValue != value {
-		state.Store(property, value)
-		debugLog(publish, fmt.Sprintf("set %s to %s", property, value))
-	}
-}
-
-func everyMinuteEvent(publish chan pub.PubsubEvent) {
-	lastBroadcast := time.Now()
-
-	for {
-		if time.Now().After(lastBroadcast.Add(time.Second * 60)) {
-			publish <- pub.PubsubEvent{
-				Topic: "every:minute",
-				Data:  pub.KeyValueData{Key: "now", Value: time.Now().Format(time.RFC3339)},
-			}
-			lastBroadcast = time.Now()
-		}
-		time.Sleep(1 * time.Second)
-	}
-}
-
-func debugLog(publish chan pub.PubsubEvent, message string) {
-	publish <- pub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pub.KeyValueData{Key: "DEBUG", Value: message},
-	}
-
 }
