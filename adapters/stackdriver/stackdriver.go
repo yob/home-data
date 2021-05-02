@@ -45,11 +45,12 @@ func processEvent(localState *sync.Map, stateMap map[string]string) {
 func stackSubmitGauge(property string, value float64) {
 	metricType := fmt.Sprintf("custom.googleapis.com/%s", property)
 	ctx := context.Background()
-	c, err := monitoring.NewMetricClient(ctx)
+	client, err := monitoring.NewMetricClient(ctx)
 	if err != nil {
 		fmt.Printf("ERROR: %v", err)
 		return
 	}
+	defer client.Close()
 	now := &timestamp.Timestamp{
 		Seconds: time.Now().Unix(),
 	}
@@ -77,7 +78,7 @@ func stackSubmitGauge(property string, value float64) {
 	}
 	fmt.Printf("Wrote metric to stackdriver: %+v\n", req)
 
-	err = c.CreateTimeSeries(ctx, req)
+	err = client.CreateTimeSeries(ctx, req)
 	if err != nil {
 		fmt.Printf("could not write time series value, %v ", err)
 		return
