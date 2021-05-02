@@ -1,5 +1,5 @@
 [Unit]
-Description=Ruuvi to Stackdriver Accept Sockets
+Description=Accept Ruuvi json on a socket and convert it to HTTP Posts
 
 [Socket]
 ListenStream=/run/ruuvi.socket

@@ -1,0 +1,18 @@
+[Unit] 
+Description=home-data - monitoring and automating the house
+
+[Service] 
+ExecStart=/usr/local/bin/home-data
+Restart=always
+RestartSec=10
+Environment=UNIFI_USER=xxx
+Environment=UNIFI_PASS=xxx
+Environment=UNIFI_PORT=8443
+Environment=UNIFI_SITE=default
+Environment=GCP_PROJECT=our-house-data
+Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/jh/git/home-data/credentials.json
+Environment=DAIKIN_STUDY_TOKEN=xxx
+Environment=DAIKIN_LOUNGE_TOKEN=xxx
+
+[Install]
+WantedBy=multi-user.target

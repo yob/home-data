@@ -1,0 +1,16 @@
+[Unit] 
+Description=Ruuvi to HTTP Service
+Requires=ruuvi-to-http.socket
+
+[Service] 
+ExecStart=/usr/local/bin/jsontohttp --target="http://127.0.0.1:8080/ruuvi"
+WorkingDirectory=/home/jh/git/home-data
+Type=simple
+StandardInput=socket 
+StandardOutput=journal
+StandardError=journal
+TimeoutStopSec=5
+#Environment=GCP_PROJECT=our-house-data
+#Environment=GOOGLE_APPLICATION_CREDENTIALS=/home/jh/git/home-data/credentials.json
+
+
