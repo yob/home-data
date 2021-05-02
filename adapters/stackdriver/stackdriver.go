@@ -25,30 +25,29 @@ func Process(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, sta
 	ch_every_minute := bus.Subscribe("every:minute")
 	googleProjectID = googleProject
 	for _ = range ch_every_minute {
-		processEvent(localState, stateMap)
+		processEvent(bus.PublishChannel(), localState, stateMap)
 	}
 }
 
-func processEvent(localState *sync.Map, stateMap map[string]string) {
-
+func processEvent(publish chan pubsub.PubsubEvent, localState *sync.Map, stateMap map[string]string) {
 	for stateKey, stackdriverMetricName := range stateMap {
 		if value, ok := localState.Load(stateKey); ok {
 			value64, err := strconv.ParseFloat(value.(string), 8)
 			if err == nil {
-				stackSubmitGauge(stackdriverMetricName, value64)
+				stackSubmitGauge(publish, stackdriverMetricName, value64)
 			}
 		} else {
-			fmt.Printf("*** failed to read %s from state\n", stateKey)
+			debugLog(publish, fmt.Sprintf("stackdriver: failed to read %s from state", stateKey))
 		}
 	}
 }
 
-func stackSubmitGauge(property string, value float64) {
+func stackSubmitGauge(publish chan pubsub.PubsubEvent, property string, value float64) {
 	metricType := fmt.Sprintf("custom.googleapis.com/%s", property)
 	ctx := context.Background()
 	client, err := monitoring.NewMetricClient(ctx)
 	if err != nil {
-		fmt.Printf("ERROR: %v", err)
+		errorLog(publish, fmt.Sprintf("stackdriver (stackSubmitGauge): %v", err))
 		return
 	}
 	defer client.Close()
@@ -77,12 +76,28 @@ func stackSubmitGauge(property string, value float64) {
 			}},
 		}},
 	}
-	fmt.Printf("Wrote metric to stackdriver: %+v\n", req)
+	debugLog(publish, fmt.Sprintf("stackdriver: wrote metric %+v", req))
 
 	err = client.CreateTimeSeries(ctx, req)
 	if err != nil {
-		fmt.Printf("could not write time series value, %v ", err)
+		errorLog(publish, fmt.Sprintf("stackdriver: could not write time series value, %v ", err))
 		return
 	}
 	return
+}
+
+func debugLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
+	}
+
+}
+
+func errorLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+	}
+
 }
