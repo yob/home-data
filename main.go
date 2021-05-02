@@ -45,8 +45,9 @@ func main() {
 	// update the shared state when attributes change
 	go func() {
 		ch_state_update := pubsub.Subscribe("state:update")
+		ch_publish := pubsub.PublishChannel()
 		for elem := range ch_state_update {
-			stateUpdate(elem.Key, elem.Value)
+			stateUpdate(ch_publish, elem.Key, elem.Value)
 		}
 	}()
 
@@ -178,15 +179,13 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func stateUpdate(property string, value string) {
+func stateUpdate(publish chan pub.PubsubEvent, property string, value string) {
 	existingValue, ok := state.Load(property)
 
 	// if the property doesn't exist in the state yet, or it exists with a different value, then update it
 	if !ok || existingValue != value {
 		state.Store(property, value)
-		fmt.Printf("set %s to %s\n", property, value)
-	} else {
-		//fmt.Printf("Skipped updating state for %s, no change in value\n", property)
+		debugLog(publish, fmt.Sprintf("set %s to %s", property, value))
 	}
 }
 
@@ -203,4 +202,12 @@ func everyMinuteEvent(publish chan pub.PubsubEvent) {
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+func debugLog(publish chan pub.PubsubEvent, message string) {
+	publish <- pub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pub.KeyValueData{Key: "DEBUG", Value: message},
+	}
+
 }

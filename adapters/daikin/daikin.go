@@ -2,7 +2,6 @@ package daikin
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	daikinClient "github.com/buxtronix/go-daikin"
@@ -12,13 +11,13 @@ import (
 func Poll(publish chan pubsub.PubsubEvent, name string, address string, token string) {
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(address, token))
 	if err != nil {
-		fmt.Printf("ERROR: %v", err)
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
 		return
 	}
 
 	dev := d.Devices[address]
 	if err := dev.GetControlInfo(); err != nil {
-		fmt.Printf("ERROR: %v\n", err)
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
 		return
 	}
 
@@ -26,7 +25,8 @@ func Poll(publish chan pubsub.PubsubEvent, name string, address string, token st
 		time.Sleep(5 * time.Second)
 
 		if err := dev.GetSensorInfo(); err != nil {
-			log.Printf("ERROR daikin: %v\n", err)
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			continue
 		}
 
 		publish <- pubsub.PubsubEvent{
@@ -39,7 +39,8 @@ func Poll(publish chan pubsub.PubsubEvent, name string, address string, token st
 		}
 
 		if err := dev.GetControlInfo(); err != nil {
-			log.Printf("ERROR daikin: %v\n", err)
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			continue
 		}
 
 		var powerInt = 0 // 0 == Off, 1 == On
@@ -53,7 +54,8 @@ func Poll(publish chan pubsub.PubsubEvent, name string, address string, token st
 		}
 
 		if err := dev.GetWeekPower(); err != nil {
-			log.Printf("ERROR daikin: %v\n", err)
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			continue
 		}
 
 		publish <- pubsub.PubsubEvent{
@@ -61,4 +63,20 @@ func Poll(publish chan pubsub.PubsubEvent, name string, address string, token st
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.watt_hours_today", name), Value: dev.WeekPower.TodayWattHours.String()},
 		}
 	}
+}
+
+func errorLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+	}
+
+}
+
+func fatalLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+	}
+
 }

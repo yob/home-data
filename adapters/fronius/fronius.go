@@ -21,7 +21,7 @@ func Poll(publish chan pubsub.PubsubEvent, address string) {
 
 		resp, err := http.Get(powerFlowUrl)
 		if err != nil {
-			fmt.Printf("ERROR - froniusInverter: %v\n", err)
+			errorLog(publish, fmt.Sprintf("froniusInverter: %v\n", err))
 			continue
 		}
 		defer resp.Body.Close()
@@ -56,7 +56,7 @@ func Poll(publish chan pubsub.PubsubEvent, address string) {
 
 		resp, err = http.Get(meterDataUrl)
 		if err != nil {
-			fmt.Printf("ERROR - froniusInverter: %v\n", err)
+			errorLog(publish, fmt.Sprintf("froniusInverter: %v\n", err))
 			continue
 		}
 		defer resp.Body.Close()
@@ -71,4 +71,12 @@ func Poll(publish chan pubsub.PubsubEvent, address string) {
 			Data:  pubsub.KeyValueData{Key: "fronius.inverter.grid_voltage", Value: gridVoltage.String()},
 		}
 	}
+}
+
+func errorLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+	}
+
 }
