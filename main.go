@@ -53,7 +53,6 @@ func main() {
 
 	// send data to stack driver every minute
 	go func() {
-		ch_every_minute := pubsub.Subscribe("every:minute")
 		stateMap := map[string]string{
 			"daikin.kitchen.temp_inside_celcius":  "daikin.kitchen.inside_temp",
 			"daikin.kitchen.temp_outside_celcius": "daikin.kitchen.outside_temp",
@@ -98,7 +97,7 @@ func main() {
 			"ruuvi.outside.humidity":     "ruuvi.outside.humidity",
 			"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
 		}
-		stackdriver.Process(googleProjectID, &state, stateMap, ch_every_minute)
+		stackdriver.Process(pubsub, googleProjectID, &state, stateMap)
 	}()
 
 	// trigger an event that anyone can listen to if they want to run code every minute
@@ -108,18 +107,18 @@ func main() {
 
 	// daikin plugin, one per unit
 	go func() {
-		daikin.Poll(pubsub.PublishChannel(), "kitchen", kitchen_ip, "")
+		daikin.Poll(pubsub, "kitchen", kitchen_ip, "")
 	}()
 	go func() {
-		daikin.Poll(pubsub.PublishChannel(), "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
+		daikin.Poll(pubsub, "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
 	}()
 	go func() {
-		daikin.Poll(pubsub.PublishChannel(), "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
+		daikin.Poll(pubsub, "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
 	}()
 
 	// fronius plugin, one per inverter
 	go func() {
-		fronius.Poll(pubsub.PublishChannel(), inverter_ip)
+		fronius.Poll(pubsub, inverter_ip)
 	}()
 
 	// unifi plugin, one per network to detect presense of specific people
@@ -135,7 +134,7 @@ func main() {
 				"10.1.1.134": "andrea",
 			},
 		}
-		unifi.Poll(pubsub.PublishChannel(), config)
+		unifi.Poll(pubsub, config)
 	}()
 
 	// webserver, as an alternative way to injest events
@@ -157,7 +156,7 @@ func startHttpServer() {
 		"fd:54:a9:f0:a8:a5": "outside",
 	}
 
-	ruuviAdapter := ruuvi.NewRuuviAdapter(pubsub.PublishChannel(), addressMap)
+	ruuviAdapter := ruuvi.NewRuuviAdapter(pubsub, addressMap)
 	http.Handle("/ruuvi", appHandler(ruuviAdapter.HttpHandler))
 	http.HandleFunc("/", http.NotFound)
 	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))

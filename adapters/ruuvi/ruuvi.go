@@ -14,10 +14,10 @@ type RuuviAdapter struct {
 	publishChannel chan pubsub.PubsubEvent
 }
 
-func NewRuuviAdapter(publishChannel chan pubsub.PubsubEvent, addressMap map[string]string) *RuuviAdapter {
+func NewRuuviAdapter(bus *pubsub.Pubsub, addressMap map[string]string) *RuuviAdapter {
 	return &RuuviAdapter{
 		addressMap:     addressMap,
-		publishChannel: publishChannel,
+		publishChannel: bus.PublishChannel(),
 	}
 }
 

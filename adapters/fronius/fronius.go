@@ -12,7 +12,8 @@ import (
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-func Poll(publish chan pubsub.PubsubEvent, address string) {
+func Poll(bus *pubsub.Pubsub, address string) {
+	publish := bus.PublishChannel()
 	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
 	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
 

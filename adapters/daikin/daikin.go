@@ -5,10 +5,11 @@ import (
 	"time"
 
 	daikinClient "github.com/buxtronix/go-daikin"
-	pubsub "github.com/yob/home-data/pubsub"
+	"github.com/yob/home-data/pubsub"
 )
 
-func Poll(publish chan pubsub.PubsubEvent, name string, address string, token string) {
+func Poll(bus *pubsub.Pubsub, name string, address string, token string) {
+	publish := bus.PublishChannel()
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(address, token))
 	if err != nil {
 		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
