@@ -103,13 +103,27 @@ func main() {
 
 	// daikin plugin, one per unit
 	go func() {
-		daikin.Poll(pubsub, "kitchen", kitchen_ip, "")
+		config := daikin.Config{
+			Address: kitchen_ip,
+			Name:    "kitchen",
+		}
+		daikin.Poll(pubsub, config)
 	}()
 	go func() {
-		daikin.Poll(pubsub, "study", study_ip, os.Getenv("DAIKIN_STUDY_TOKEN"))
+		config := daikin.Config{
+			Address: study_ip,
+			Name:    "study",
+			Token:   os.Getenv("DAIKIN_STUDY_TOKEN"),
+		}
+		daikin.Poll(pubsub, config)
 	}()
 	go func() {
-		daikin.Poll(pubsub, "lounge", lounge_ip, os.Getenv("DAIKIN_LOUNGE_TOKEN"))
+		config := daikin.Config{
+			Address: lounge_ip,
+			Name:    "lounge",
+			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
+		}
+		daikin.Poll(pubsub, config)
 	}()
 
 	// fronius plugin, one per inverter

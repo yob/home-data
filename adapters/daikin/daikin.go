@@ -8,39 +8,43 @@ import (
 	"github.com/yob/home-data/pubsub"
 )
 
-func Poll(bus *pubsub.Pubsub, name string, address string, token string) {
+type Config struct {
+	Address string
+	Name    string
+	Token   string
+}
+
+func Poll(bus *pubsub.Pubsub, config Config) {
 	publish := bus.PublishChannel()
-	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(address, token))
+	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.Address, config.Token))
 	if err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
-	dev := d.Devices[address]
+	dev := d.Devices[config.Address]
 	if err := dev.GetControlInfo(); err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
 	for {
-		time.Sleep(5 * time.Second)
-
 		if err := dev.GetSensorInfo(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_inside_celcius", name), Value: dev.SensorInfo.HomeTemperature.String()},
+			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_inside_celcius", config.Name), Value: dev.SensorInfo.HomeTemperature.String()},
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_outside_celcius", name), Value: dev.SensorInfo.OutsideTemperature.String()},
+			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_outside_celcius", config.Name), Value: dev.SensorInfo.OutsideTemperature.String()},
 		}
 
 		if err := dev.GetControlInfo(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
@@ -51,18 +55,20 @@ func Poll(bus *pubsub.Pubsub, name string, address string, token string) {
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.power", name), Value: fmt.Sprintf("%d", powerInt)},
+			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.power", config.Name), Value: fmt.Sprintf("%d", powerInt)},
 		}
 
 		if err := dev.GetWeekPower(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", name, err))
+			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.watt_hours_today", name), Value: dev.WeekPower.TodayWattHours.String()},
+			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.watt_hours_today", config.Name), Value: dev.WeekPower.TodayWattHours.String()},
 		}
+
+		time.Sleep(20 * time.Second)
 	}
 }
 
