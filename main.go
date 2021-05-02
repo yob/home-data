@@ -34,6 +34,14 @@ type appHandler func(http.ResponseWriter, *http.Request) (int, error)
 
 func main() {
 
+	// all log messages printed via a single goroutine
+	go func() {
+		ch_log := pubsub.Subscribe("log:new")
+		for event := range ch_log {
+			fmt.Printf("%s: %s\n", event.Key, event.Value)
+		}
+	}()
+
 	// update the shared state when attributes change
 	go func() {
 		ch_state_update := pubsub.Subscribe("state:update")

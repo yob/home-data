@@ -2,7 +2,6 @@ package unifi
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	pubsub "github.com/yob/home-data/pubsub"
@@ -27,18 +26,21 @@ func Poll(publish chan pubsub.PubsubEvent, config Config) {
 
 	u, err := unifi.Login(config.UnifiUser, config.UnifiPass, config.Address, config.UnifiPort, config.UnifiSite, unifiApiVersion)
 	if err != nil {
-		log.Fatalf("Unifi login returned error: %v\n", err)
+		fatalLog(publish, fmt.Sprintf("Unifi login returned error: %v", err))
+		return
 	}
 	defer u.Logout()
 
 	for {
 		site, err := u.Site("default")
 		if err != nil {
-			log.Fatalf("ERROR: %v\n", err)
+			fatalLog(publish, fmt.Sprintf("%v", err))
+			return
 		}
 		stations, err := u.Sta(site)
 		if err != nil {
-			log.Fatalf("ERROR: %v\n", err)
+			fatalLog(publish, fmt.Sprintf("%v", err))
+			return
 		}
 
 		for _, s := range stations {
@@ -53,4 +55,12 @@ func Poll(publish chan pubsub.PubsubEvent, config Config) {
 
 		time.Sleep(20 * time.Second)
 	}
+}
+
+func fatalLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+	}
+
 }
