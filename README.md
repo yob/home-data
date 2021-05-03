@@ -24,7 +24,7 @@ Here's part of the dashboard I get:
 ## Why not Home Assistant?
 
 I'm a software guy, and this was a good excuse to explore golang. In particular,
-I wanted to try and actor pattern using only channels for cross-goroutine
+I wanted to try the actor pattern using only channels for cross-goroutine
 communication.
 
 The result is < 1000 lines of go (so far) that does just what I need. I have to
