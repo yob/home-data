@@ -1,0 +1,15 @@
+* config via a file, not hard coded in main
+  * maybe: toml?
+  * maybe: each section must specify the adapter/core/module.whatever it's configuring
+  * maybe: allow adapters to be configured multiple times with a different name. eg - daikin for multiple splits
+* executing actions/automations that change the real world
+  * splits on to cool when outside temp is hot and power is cheap?
+  * heat hot water only when solar is generating or power is > 10c/kWh?
+  * turn on ac/heaters when power price is negative and we can be paid to consume?
+* amber adapter so I can monitor prices and take action when it below/above a threshold
+* proper state, not a synv.Map. Maybe redis? Maybe cockroachdb cloud so I can learn it?
+* proper types on state, not all strings?
+* buy a WebRelay Quad (https://www.controlbyweb.com/webrelay-quad/) and control my hot water
+* If the ruuvi gateway ever becomes available, consider switching to that
+  * if it supports polling via a local API
+  * might be a lot less moving parts compared to the bluewalker/jsontohttp shenanigans i have going on
