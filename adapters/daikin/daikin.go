@@ -2,6 +2,7 @@ package daikin
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	daikinClient "github.com/buxtronix/go-daikin"
@@ -15,6 +16,24 @@ type Config struct {
 }
 
 func Poll(bus *pubsub.Pubsub, config Config) {
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		broadcastState(bus, config)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		changeState(bus, config)
+		wg.Done()
+	}()
+
+	wg.Wait()
+}
+
+func broadcastState(bus *pubsub.Pubsub, config Config) {
 	publish := bus.PublishChannel()
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.Address, config.Token))
 	if err != nil {
@@ -69,6 +88,51 @@ func Poll(bus *pubsub.Pubsub, config Config) {
 		}
 
 		time.Sleep(20 * time.Second)
+	}
+}
+
+func changeState(bus *pubsub.Pubsub, config Config) {
+	publish := bus.PublishChannel()
+
+	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.Address, config.Token))
+	if err != nil {
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		return
+	}
+
+	dev := d.Devices[config.Address]
+	if err := dev.GetControlInfo(); err != nil {
+		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		return
+	}
+
+	ch_control := bus.Subscribe(fmt.Sprintf("daikin.%s.control", config.Name))
+	for event := range ch_control {
+		if event.Key == "power" && event.Value == "off" {
+			if err := dev.GetControlInfo(); err != nil {
+				errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+				continue
+			}
+
+			dev.ControlInfo.Power = daikinClient.PowerOff
+			if err := dev.SetControlInfo(); err != nil {
+				errorLog(publish, fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
+				continue
+			}
+		} else if event.Key == "power" && event.Value == "on" {
+			if err := dev.GetControlInfo(); err != nil {
+				errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+				continue
+			}
+
+			dev.ControlInfo.Power = daikinClient.PowerOn
+			if err := dev.SetControlInfo(); err != nil {
+				errorLog(publish, fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
+				continue
+			}
+		} else {
+			errorLog(publish, fmt.Sprintf("daikin (%s): unrecognised event: %v", config.Name, event))
+		}
 	}
 }
 
