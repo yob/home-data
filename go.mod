@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	cloud.google.com/go v0.84.0
+	github.com/DataDog/datadog-api-client-go v1.1.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd
 	github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866
