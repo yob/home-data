@@ -13,7 +13,7 @@ import (
 	datadog "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 )
 
-func Process(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, stateMap map[string]string) {
+func Process(bus *pubsub.Pubsub, localState *sync.Map, interestingKeys []string) {
 	apiKey := os.Getenv("DD_API_KEY")
 	if apiKey == "" {
 		errorLog(bus.PublishChannel(), "env var DD_API_KEY must be set for metrics to be submitted to datadog")
@@ -27,16 +27,16 @@ func Process(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, sta
 
 	ch_every_minute := bus.Subscribe("every:minute")
 	for _ = range ch_every_minute {
-		processEvent(bus.PublishChannel(), localState, stateMap)
+		processEvent(bus.PublishChannel(), localState, interestingKeys)
 	}
 }
 
-func processEvent(publish chan pubsub.PubsubEvent, localState *sync.Map, stateMap map[string]string) {
-	for stateKey, datadogMetricName := range stateMap {
+func processEvent(publish chan pubsub.PubsubEvent, localState *sync.Map, interestingKeys []string) {
+	for _, stateKey := range interestingKeys {
 		if value, ok := localState.Load(stateKey); ok {
 			value64, err := strconv.ParseFloat(value.(string), 8)
 			if err == nil {
-				ddSubmitGauge(publish, datadogMetricName, value64)
+				ddSubmitGauge(publish, stateKey, value64)
 			}
 		} else {
 			debugLog(publish, fmt.Sprintf("datadog: failed to read %s from state", stateKey))
