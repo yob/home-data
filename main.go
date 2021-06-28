@@ -10,6 +10,7 @@ import (
 	"github.com/yob/home-data/core/statebus"
 	"github.com/yob/home-data/core/timers"
 
+	"github.com/yob/home-data/adapters/amber"
 	"github.com/yob/home-data/adapters/daikin"
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
@@ -147,6 +148,11 @@ func main() {
 			"ruuvi.outside.temp_celcius",
 			"ruuvi.outside.humidity",
 			"ruuvi.outside.pressure",
+
+			"amber.general.cents_per_kwh",
+			"amber.general.spot_cents_per_kwh",
+			"amber.general.renewables",
+			"amber.feedin.cents_per_kwh",
 		}
 		datadog.Process(pubsub, &state, interestingKeys)
 	}()
@@ -174,6 +180,11 @@ func main() {
 			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
 		}
 		daikin.Poll(pubsub, config)
+	}()
+
+	// amber plugin
+	go func() {
+		amber.Poll(pubsub, os.Getenv("AMBER_API_KEY"))
 	}()
 
 	// fronius plugin, one per inverter
