@@ -86,6 +86,7 @@ func (adapter *RuuviAdapter) HttpHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // From https://github.com/de-wax/go-pkg/blob/a5a606b51a6fa86dc0b561d4d019b3d7fc1e479b/dewpoint/dewpoint.go
+// The results match what I get when I plug values into http://www.dpcalc.org/, so maybe they're about right?
 func calculateDewPoint(T float64, H float64) (float64, error) {
 	// Check if the transferred value for the temperature is within the valid range
 	if T < -45 || T > 60 {
