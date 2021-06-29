@@ -74,7 +74,7 @@ func (adapter *RuuviAdapter) HttpHandler(w http.ResponseWriter, r *http.Request)
 		if err == nil {
 			adapter.publishChannel <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.dewpoint", ruuviName), Value: strconv.FormatFloat(dewpoint, 'f', -1, 64)},
+				Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), Value: strconv.FormatFloat(dewpoint, 'f', -1, 64)},
 			}
 		} else {
 			errorLog(adapter.publishChannel, fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
