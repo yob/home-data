@@ -128,26 +128,32 @@ func main() {
 			"ruuvi.study.temp_celcius",
 			"ruuvi.study.humidity",
 			"ruuvi.study.pressure",
+			"ruuvi.study.dewpoint",
 
 			"ruuvi.bed1.temp_celcius",
 			"ruuvi.bed1.humidity",
 			"ruuvi.bed1.pressure",
+			"ruuvi.bed1.dewpoint",
 
 			"ruuvi.bed2.temp_celcius",
 			"ruuvi.bed2.humidity",
 			"ruuvi.bed2.pressure",
+			"ruuvi.bed2.dewpoint",
 
 			"ruuvi.lounge.temp_celcius",
 			"ruuvi.lounge.humidity",
 			"ruuvi.lounge.pressure",
+			"ruuvi.lounge.dewpoint",
 
 			"ruuvi.kitchen.temp_celcius",
 			"ruuvi.kitchen.humidity",
 			"ruuvi.kitchen.pressure",
+			"ruuvi.kitchen.dewpoint",
 
 			"ruuvi.outside.temp_celcius",
 			"ruuvi.outside.humidity",
 			"ruuvi.outside.pressure",
+			"ruuvi.outside.dewpoint",
 
 			"amber.general.cents_per_kwh",
 			"amber.general.spot_cents_per_kwh",
