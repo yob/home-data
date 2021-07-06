@@ -19,21 +19,14 @@ import (
 	pub "github.com/yob/home-data/pubsub"
 )
 
-const (
-	kitchen_ip      = "10.1.1.110"
-	lounge_ip       = "10.1.1.111"
-	study_ip        = "10.1.1.112"
-	inverter_ip     = "10.1.1.69"
-	unifi_ip        = "10.1.1.2"
-	googleProjectID = "our-house-data"
-)
-
-var (
-	state  = sync.Map{} // map[string]string{}
-	pubsub = pub.NewPubsub()
-)
-
 func main() {
+	pubsub := pub.NewPubsub()
+	state := sync.Map{} // map[string]string{}
+
+	// webserver, as an alternative way to injest events
+	go func() {
+		http.Init(pubsub, 8080)
+	}()
 
 	// all log messages printed via a single goroutine
 	go func() {
@@ -97,7 +90,8 @@ func main() {
 			"ruuvi.outside.humidity":     "ruuvi.outside.humidity",
 			"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
 		}
-		stackdriver.Process(pubsub, googleProjectID, &state, stateMap)
+		googleProjectID := "our-house-data"
+		stackdriver.Init(pubsub, googleProjectID, &state, stateMap)
 	}()
 
 	// send data to datadog every minute
@@ -157,42 +151,42 @@ func main() {
 			"amber.general.renewables",
 			"amber.feedin.cents_per_kwh",
 		}
-		datadog.Process(pubsub, &state, interestingKeys)
+		datadog.Init(pubsub, &state, interestingKeys)
 	}()
 
 	// daikin plugin, one per unit
 	go func() {
 		config := daikin.Config{
-			Address: kitchen_ip,
+			Address: "10.1.1.110",
 			Name:    "kitchen",
 		}
-		daikin.Poll(pubsub, config)
+		daikin.Init(pubsub, config)
 	}()
 	go func() {
 		config := daikin.Config{
-			Address: study_ip,
+			Address: "10.1.1.112",
 			Name:    "study",
 			Token:   os.Getenv("DAIKIN_STUDY_TOKEN"),
 		}
-		daikin.Poll(pubsub, config)
+		daikin.Init(pubsub, config)
 	}()
 	go func() {
 		config := daikin.Config{
-			Address: lounge_ip,
+			Address: "10.1.1.111",
 			Name:    "lounge",
 			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
 		}
-		daikin.Poll(pubsub, config)
+		daikin.Init(pubsub, config)
 	}()
 
 	// amber plugin
 	go func() {
-		amber.Poll(pubsub, os.Getenv("AMBER_API_KEY"))
+		amber.Init(pubsub, os.Getenv("AMBER_API_KEY"))
 	}()
 
 	// fronius plugin, one per inverter
 	go func() {
-		fronius.Poll(pubsub, inverter_ip)
+		fronius.Init(pubsub, "10.1.1.69")
 	}()
 
 	// ruuvi plugin
@@ -212,7 +206,7 @@ func main() {
 	// unifi plugin, one per network to detect presense of specific people
 	go func() {
 		config := unifi.Config{
-			Address:   unifi_ip,
+			Address:   "10.1.1.2",
 			UnifiUser: os.Getenv("UNIFI_USER"),
 			UnifiPass: os.Getenv("UNIFI_PASS"),
 			UnifiPort: os.Getenv("UNIFI_PORT"),
@@ -222,12 +216,7 @@ func main() {
 				"10.1.1.134": "andrea",
 			},
 		}
-		unifi.Poll(pubsub, config)
-	}()
-
-	// webserver, as an alternative way to injest events
-	go func() {
-		http.Init(pubsub, 8080)
+		unifi.Init(pubsub, config)
 	}()
 
 	// loop forever, shuffling events between goroutines

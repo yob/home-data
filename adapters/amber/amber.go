@@ -10,7 +10,7 @@ import (
 	"github.com/yob/home-data/pubsub"
 )
 
-func Poll(bus *pubsub.Pubsub, apiKey string) {
+func Init(bus *pubsub.Pubsub, apiKey string) {
 	publish := bus.PublishChannel()
 	if apiKey == "" {
 		errorLog(publish, "amber: API key not found")

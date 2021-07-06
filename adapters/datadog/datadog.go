@@ -13,7 +13,7 @@ import (
 	datadog "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 )
 
-func Process(bus *pubsub.Pubsub, localState *sync.Map, interestingKeys []string) {
+func Init(bus *pubsub.Pubsub, localState *sync.Map, interestingKeys []string) {
 	apiKey := os.Getenv("DD_API_KEY")
 	if apiKey == "" {
 		errorLog(bus.PublishChannel(), "env var DD_API_KEY must be set for metrics to be submitted to datadog")

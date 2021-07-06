@@ -15,7 +15,7 @@ type Config struct {
 	Token   string
 }
 
-func Poll(bus *pubsub.Pubsub, config Config) {
+func Init(bus *pubsub.Pubsub, config Config) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)

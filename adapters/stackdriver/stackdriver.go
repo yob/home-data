@@ -21,7 +21,7 @@ var (
 	googleProjectID = ""
 )
 
-func Process(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, stateMap map[string]string) {
+func Init(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, stateMap map[string]string) {
 	ch_every_minute := bus.Subscribe("every:minute")
 	googleProjectID = googleProject
 	for _ = range ch_every_minute {

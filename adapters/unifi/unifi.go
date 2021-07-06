@@ -22,7 +22,7 @@ type Config struct {
 	IpMap     map[string]string
 }
 
-func Poll(bus *pubsub.Pubsub, config Config) {
+func Init(bus *pubsub.Pubsub, config Config) {
 	publish := bus.PublishChannel()
 
 	u, err := unifi.Login(config.UnifiUser, config.UnifiPass, config.Address, config.UnifiPort, config.UnifiSite, unifiApiVersion)
