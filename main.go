@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"sync"
+	"time"
 
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
@@ -43,6 +44,10 @@ func main() {
 	go func() {
 		statebus.Init(pubsub, &state)
 	}()
+
+	// Give the core functions time to setup before we start registering adapters.
+	// TODO: replace this with proper signaling when all core functions are ready.
+	time.Sleep(2 * time.Second)
 
 	// send data to stack driver every minute
 	go func() {

@@ -12,6 +12,12 @@ import (
 
 func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
 	publish := bus.PublishChannel()
+
+	publish <- pubsub.PubsubEvent{
+		Topic: "http:register-path",
+		Data:  pubsub.KeyValueData{Key: "", Value: "/ruuvi"},
+	}
+
 	chRequests := bus.Subscribe("http-request:/ruuvi")
 	for event := range chRequests {
 		reqUUID := event.Key

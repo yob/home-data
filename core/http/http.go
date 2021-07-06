@@ -19,18 +19,23 @@ const (
 )
 
 type httpServer struct {
-	bus *pubsub.Pubsub
+	bus        *pubsub.Pubsub
+	paths      []string
+	pathsMutex sync.RWMutex
 }
 
 func Init(bus *pubsub.Pubsub, port int) {
 	server := httpServer{
-		bus: bus,
+		bus:   bus,
+		paths: []string{},
 	}
 
-	// TODO this path shouldn't be hard coded here. We need a way for the ruuvi adapter to register the paths
-	// it cares about
-	http.HandleFunc("/ruuvi", server.ServeHTTP)
-	http.HandleFunc("/", http.NotFound)
+	// listen for adapters registering paths
+	go func() {
+		server.listenForPaths()
+	}()
+
+	http.HandleFunc("/", server.ServeHTTP)
 
 	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
 	if err != nil {
@@ -39,8 +44,37 @@ func Init(bus *pubsub.Pubsub, port int) {
 	}
 }
 
+func (server *httpServer) listenForPaths() {
+	chRegister := server.bus.Subscribe("http:register-path")
+	chPublish := server.bus.PublishChannel()
+
+	for event := range chRegister {
+		server.pathsMutex.Lock()
+		debugLog(chPublish, fmt.Sprintf("http: registering path (%s)", event.Value))
+		server.paths = append(server.paths, event.Value)
+		server.pathsMutex.Unlock()
+	}
+}
+
+func (server *httpServer) willServePath(path string) bool {
+	server.pathsMutex.RLock()
+	defer server.pathsMutex.RUnlock()
+	for _, p := range server.paths {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
+
 func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
+
+	// Do we have anything that'll serve this path? If not, bail early
+	if !server.willServePath(r.URL.Path) {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
 
 	reqUUID, err := uuid.NewRandom()
 	if err != nil {
@@ -100,6 +134,14 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// don't leave the func until a response has been published back to the bus
 	wg.Wait()
+}
+
+func debugLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
+	}
+
 }
 
 func fatalLog(publish chan pubsub.PubsubEvent, message string) {
