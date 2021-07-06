@@ -13,7 +13,7 @@ import (
 func Init(bus *pubsub.Pubsub, apiKey string) {
 	publish := bus.PublishChannel()
 	if apiKey == "" {
-		errorLog(publish, "amber: API key not found")
+		fatalLog(publish, "amber: API key not found")
 		return
 	}
 
@@ -22,12 +22,12 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 	ctx := context.Background()
 	sites, err := client.GetSites(ctx)
 	if err != nil {
-		errorLog(publish, fmt.Sprintf("amber: error fetching sites - %v", err))
+		fatalLog(publish, fmt.Sprintf("amber: error fetching sites - %v", err))
 		return
 	}
 
 	if len(sites) != 1 {
-		errorLog(publish, fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
+		fatalLog(publish, fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
 		return
 	}
 	site := sites[0]
@@ -78,18 +78,16 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 	}
 }
 
-func debugLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
-	}
-
-}
-
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
 		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
 	}
+}
 
+func fatalLog(publish chan pubsub.PubsubEvent, message string) {
+	publish <- pubsub.PubsubEvent{
+		Topic: "log:new",
+		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+	}
 }
