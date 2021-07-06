@@ -6,8 +6,7 @@
   * splits on to cool when outside temp is hot and power is cheap?
   * heat hot water only when solar is generating or power is > 10c/kWh?
   * turn on ac/heaters when power price is negative and we can be paid to consume?
-* amber adapter so I can monitor prices and take action when it below/above a threshold
-* proper state, not a synv.Map. Maybe redis? Maybe cockroachdb cloud so I can learn it?
+* proper state, not a sync.Map. Maybe redis? Maybe cockroachdb cloud so I can learn it?
 * proper types on state, not all strings?
 * buy a WebRelay Quad (https://www.controlbyweb.com/webrelay-quad/) and control my hot water
 * If the ruuvi gateway ever becomes available, consider switching to that
