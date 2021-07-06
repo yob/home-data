@@ -27,9 +27,9 @@ I'm a software guy, and this was a good excuse to explore golang. In particular,
 I wanted to try the actor pattern using only channels for cross-goroutine
 communication.
 
-The result is < 1000 lines of go (so far) that does just what I need. I have to
+The result is ~1000 lines of go (so far) that does just what I need. I have to
 maintain it and don't get all the home Assistant bells and whistles, but I'm OK
-with that for now. I learnt a lot along the way.
+with that for now. I'm learning a lot along the way.
 
 ## Will I ever setup some automation?
 
@@ -44,8 +44,8 @@ electricity.
 
 ## Cross compiling for the raspberry pi 4
 
-I general develop this on my intel laptop, and deploy it to a raspberry pi 4 that's on 24/7. Here's 
-the cross compilation commands:
+I generally develop this on my intel laptop, and deploy it to a raspberry pi 4
+that's on 24/7. Here's the cross compilation commands:
 
     GOOS=linux GOARCH=arm GOARM=7 go build -o build-arm64/home-data .
     GOOS=linux GOARCH=arm GOARM=7 go build -o build-arm64/jsontohttp ./jsontohttp/
