@@ -1,11 +1,10 @@
 package main
 
 import (
-	"log"
-	"net/http"
 	"os"
 	"sync"
 
+	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/statebus"
 	"github.com/yob/home-data/core/timers"
@@ -33,8 +32,6 @@ var (
 	state  = sync.Map{} // map[string]string{}
 	pubsub = pub.NewPubsub()
 )
-
-type appHandler func(http.ResponseWriter, *http.Request) (int, error)
 
 func main() {
 
@@ -198,6 +195,20 @@ func main() {
 		fronius.Poll(pubsub, inverter_ip)
 	}()
 
+	// ruuvi plugin
+	go func() {
+		var addressmap = map[string]string{
+			"cc:64:a6:ed:f6:aa": "study",
+			"f2:b0:81:51:8a:e0": "bed1",
+			"fb:dd:03:59:e8:26": "bed2",
+			"ef:81:7d:23:3c:74": "lounge",
+			"c2:69:9e:be:25:aa": "kitchen",
+			"fd:54:a9:f0:a8:a5": "outside",
+		}
+
+		ruuvi.Init(pubsub, addressmap)
+	}()
+
 	// unifi plugin, one per network to detect presense of specific people
 	go func() {
 		config := unifi.Config{
@@ -216,41 +227,9 @@ func main() {
 
 	// webserver, as an alternative way to injest events
 	go func() {
-		startHttpServer()
+		http.Init(pubsub, 8080)
 	}()
 
 	// loop forever, shuffling events between goroutines
 	pubsub.Run()
-}
-
-func startHttpServer() {
-	var addressMap = map[string]string{
-		"cc:64:a6:ed:f6:aa": "study",
-		"f2:b0:81:51:8a:e0": "bed1",
-		"fb:dd:03:59:e8:26": "bed2",
-		"ef:81:7d:23:3c:74": "lounge",
-		"c2:69:9e:be:25:aa": "kitchen",
-		"fd:54:a9:f0:a8:a5": "outside",
-	}
-
-	ruuviAdapter := ruuvi.NewRuuviAdapter(pubsub, addressMap)
-	http.Handle("/ruuvi", appHandler(ruuviAdapter.HttpHandler))
-	http.HandleFunc("/", http.NotFound)
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
-}
-
-func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if status, err := fn(w, r); err != nil {
-		switch status {
-		case http.StatusBadRequest:
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		case http.StatusNotFound:
-			http.NotFound(w, r)
-		case http.StatusInternalServerError:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		default:
-			// Catch any other errors we haven't explicitly handled
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-	}
 }

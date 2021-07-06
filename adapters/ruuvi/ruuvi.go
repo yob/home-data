@@ -3,86 +3,87 @@ package ruuvi
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"net/http"
 	"strconv"
 
 	"github.com/tidwall/gjson"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-type RuuviAdapter struct {
-	addressMap     map[string]string
-	publishChannel chan pubsub.PubsubEvent
-}
+func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
+	publish := bus.PublishChannel()
+	chRequests := bus.Subscribe("http-request:/ruuvi")
+	for event := range chRequests {
+		reqUUID := event.Key
+		reqBody := event.Value
 
-func NewRuuviAdapter(bus *pubsub.Pubsub, addressMap map[string]string) *RuuviAdapter {
-	return &RuuviAdapter{
-		addressMap:     addressMap,
-		publishChannel: bus.PublishChannel(),
+		err := handleRequest(bus, addressmap, reqBody)
+		if err != nil {
+			errorLog(publish, fmt.Sprintf("ruuvi: error handling request (%v)", err))
+
+			publish <- pubsub.PubsubEvent{
+				Topic: fmt.Sprintf("http-response:%s", reqUUID),
+				Data:  pubsub.KeyValueData{Key: "400", Value: fmt.Sprintf("ERR: %v\n", err)},
+			}
+			continue
+		}
+
+		publish <- pubsub.PubsubEvent{
+			Topic: fmt.Sprintf("http-response:%s", reqUUID),
+			Data:  pubsub.KeyValueData{Key: "200", Value: "OK\n"},
+		}
 	}
 }
 
-func (adapter *RuuviAdapter) HttpHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	if r.Method != http.MethodPost {
-		http.NotFound(w, r)
-		return 404, nil
-	}
+func handleRequest(bus *pubsub.Pubsub, addressMap map[string]string, jsonBody string) error {
+	publish := bus.PublishChannel()
 
-	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return 400, fmt.Errorf("ERR: %v", err)
-	}
-	jsonBody := string(body)
 	if !gjson.Valid(jsonBody) {
-		return 400, fmt.Errorf("invalid JSON")
+		return fmt.Errorf("invalid JSON")
 	}
 
 	device_mac := gjson.Get(jsonBody, "device.address")
 
-	if ruuviName, ok := adapter.addressMap[device_mac.String()]; ok {
+	if ruuviName, ok := addressMap[device_mac.String()]; ok {
 		temp := gjson.Get(jsonBody, "sensors.temperature")
 		humidity := gjson.Get(jsonBody, "sensors.humidity")
 		pressure := gjson.Get(jsonBody, "sensors.pressure")
 		voltage := gjson.Get(jsonBody, "sensors.voltage")
 		txpower := gjson.Get(jsonBody, "sensors.txpower")
 
-		adapter.publishChannel <- pubsub.PubsubEvent{
+		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), Value: temp.String()},
 		}
-		adapter.publishChannel <- pubsub.PubsubEvent{
+		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.humidity", ruuviName), Value: humidity.String()},
 		}
-		adapter.publishChannel <- pubsub.PubsubEvent{
+		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.pressure", ruuviName), Value: pressure.String()},
 		}
-		adapter.publishChannel <- pubsub.PubsubEvent{
+		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.voltage", ruuviName), Value: voltage.String()},
 		}
-		adapter.publishChannel <- pubsub.PubsubEvent{
+		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
 			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.txpower", ruuviName), Value: txpower.String()},
 		}
 
 		dewpoint, err := calculateDewPoint(temp.Float(), humidity.Float())
 		if err == nil {
-			adapter.publishChannel <- pubsub.PubsubEvent{
+			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
 				Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), Value: strconv.FormatFloat(dewpoint, 'f', -1, 64)},
 			}
 		} else {
-			errorLog(adapter.publishChannel, fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
+			errorLog(publish, fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
 		}
 	}
 
-	fmt.Fprintf(w, "OK")
-	return 200, nil
+	return nil
 }
 
 // From https://github.com/de-wax/go-pkg/blob/a5a606b51a6fa86dc0b561d4d019b3d7fc1e479b/dewpoint/dewpoint.go
