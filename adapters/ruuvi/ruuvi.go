@@ -15,30 +15,32 @@ func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
 
 	publish <- pubsub.PubsubEvent{
 		Topic: "http:register-path",
-		Data:  pubsub.KeyValueData{Key: "", Value: "/ruuvi"},
+		Data:  pubsub.NewValueEvent("/ruuvi"),
 	}
 
 	subRequests, _ := bus.Subscribe("http-request:/ruuvi")
 	defer subRequests.Close()
 
 	for event := range subRequests.Ch {
+		if event.Type != "http-request" {
+			continue
+		}
 		reqUUID := event.Key
-		reqBody := event.Value
 
-		err := handleRequest(bus, addressmap, reqBody)
+		err := handleRequest(bus, addressmap, event.HttpRequest.Body)
 		if err != nil {
 			errorLog(publish, fmt.Sprintf("ruuvi: error handling request (%v)", err))
 
 			publish <- pubsub.PubsubEvent{
 				Topic: fmt.Sprintf("http-response:%s", reqUUID),
-				Data:  pubsub.KeyValueData{Key: "400", Value: fmt.Sprintf("ERR: %v\n", err)},
+				Data:  pubsub.NewHttpResponseEvent(400, fmt.Sprintf("ERR: %v\n", err), reqUUID),
 			}
 			continue
 		}
 
 		publish <- pubsub.PubsubEvent{
 			Topic: fmt.Sprintf("http-response:%s", reqUUID),
-			Data:  pubsub.KeyValueData{Key: "200", Value: "OK\n"},
+			Data:  pubsub.NewHttpResponseEvent(200, "OK\n", reqUUID),
 		}
 	}
 }
@@ -61,30 +63,30 @@ func handleRequest(bus *pubsub.Pubsub, addressMap map[string]string, jsonBody st
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), Value: temp.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), temp.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.humidity", ruuviName), Value: humidity.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.humidity", ruuviName), humidity.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.pressure", ruuviName), Value: pressure.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.pressure", ruuviName), pressure.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.voltage", ruuviName), Value: voltage.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.voltage", ruuviName), voltage.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.txpower", ruuviName), Value: txpower.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.txpower", ruuviName), txpower.String()),
 		}
 
 		dewpoint, err := calculateDewPoint(temp.Float(), humidity.Float())
 		if err == nil {
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), Value: strconv.FormatFloat(dewpoint, 'f', -1, 64)},
+				Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), strconv.FormatFloat(dewpoint, 'f', -1, 64)),
 			}
 		} else {
 			errorLog(publish, fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
@@ -118,7 +120,7 @@ func calculateDewPoint(T float64, H float64) (float64, error) {
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
 
 }

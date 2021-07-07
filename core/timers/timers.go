@@ -17,7 +17,7 @@ func everyMinuteEvent(publish chan pubsub.PubsubEvent) {
 		if time.Now().After(lastBroadcast.Add(time.Second * 60)) {
 			publish <- pubsub.PubsubEvent{
 				Topic: "every:minute",
-				Data:  pubsub.KeyValueData{Key: "now", Value: time.Now().Format(time.RFC3339)},
+				Data:  pubsub.NewValueEvent(time.Now().Format(time.RFC3339)),
 			}
 			lastBroadcast = time.Now()
 		}

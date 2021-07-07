@@ -56,23 +56,23 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 		if generalPrice.Type != "" {
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: "amber.general.cents_per_kwh", Value: strconv.FormatFloat(generalPrice.PerKwh, 'f', -1, 64)},
+				Data:  pubsub.NewKeyValueEvent("amber.general.cents_per_kwh", strconv.FormatFloat(generalPrice.PerKwh, 'f', -1, 64)),
 			}
 
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: "amber.general.spot_cents_per_kwh", Value: strconv.FormatFloat(generalPrice.SpotPerKwh, 'f', -1, 64)},
+				Data:  pubsub.NewKeyValueEvent("amber.general.spot_cents_per_kwh", strconv.FormatFloat(generalPrice.SpotPerKwh, 'f', -1, 64)),
 			}
 
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: "amber.general.renewables", Value: strconv.FormatFloat(generalPrice.Renewables, 'f', -1, 64)},
+				Data:  pubsub.NewKeyValueEvent("amber.general.renewables", strconv.FormatFloat(generalPrice.Renewables, 'f', -1, 64)),
 			}
 		}
 		if feedInPrice.Type != "" {
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
-				Data:  pubsub.KeyValueData{Key: "amber.feedin.cents_per_kwh", Value: strconv.FormatFloat(feedInPrice.PerKwh, 'f', -1, 64)},
+				Data:  pubsub.NewKeyValueEvent("amber.feedin.cents_per_kwh", strconv.FormatFloat(feedInPrice.PerKwh, 'f', -1, 64)),
 			}
 		}
 	}
@@ -81,13 +81,13 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
 }
 
 func fatalLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+		Data:  pubsub.NewKeyValueEvent("FATAL", message),
 	}
 }

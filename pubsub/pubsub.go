@@ -21,19 +21,70 @@ type Pubsub struct {
 
 type Subscription struct {
 	Topic   string
-	Ch      chan KeyValueData
+	Ch      chan EventData
 	uuid    string
 	closeCh chan string
 }
 
 type PubsubEvent struct {
 	Topic string
-	Data  KeyValueData
+	Data  EventData
 }
 
-type KeyValueData struct {
-	Key   string
-	Value string
+type HttpRequest struct {
+	Headers map[string]string
+	Body    string
+}
+
+type HttpResponse struct {
+	Status int
+	Body   string
+}
+
+type EventData struct {
+	Type         string
+	Key          string
+	Value        string
+	HttpRequest  HttpRequest
+	HttpResponse HttpResponse
+}
+
+func NewValueEvent(value string) EventData {
+	return EventData{
+		Type:  "value",
+		Value: value,
+	}
+}
+
+func NewKeyValueEvent(key string, value string) EventData {
+	return EventData{
+		Type:  "key-value",
+		Key:   key,
+		Value: value,
+	}
+}
+
+// we'll probably need to capture the request headers here at some point, but I
+// don't need them yet
+func NewHttpRequestEvent(body string, uuid string) EventData {
+	return EventData{
+		Type: "http-request",
+		Key:  uuid,
+		HttpRequest: HttpRequest{
+			Body: body,
+		},
+	}
+}
+
+func NewHttpResponseEvent(status int, body string, uuid string) EventData {
+	return EventData{
+		Type: "http-response",
+		Key:  uuid,
+		HttpResponse: HttpResponse{
+			Status: status,
+			Body:   body,
+		},
+	}
 }
 
 func NewPubsub() *Pubsub {
@@ -99,7 +150,7 @@ func (ps *Pubsub) Subscribe(topic string) (*Subscription, error) {
 
 	sub := &Subscription{
 		Topic:   topic,
-		Ch:      make(chan KeyValueData, channelBufferSize),
+		Ch:      make(chan EventData, channelBufferSize),
 		uuid:    subUUID.String(),
 		closeCh: ps.closeSubChannel,
 	}

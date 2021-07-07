@@ -12,8 +12,12 @@ func Init(bus *pubsub.Pubsub, state *sync.Map) {
 	defer subStateUpdate.Close()
 
 	ch_publish := bus.PublishChannel()
-	for elem := range subStateUpdate.Ch {
-		stateUpdate(ch_publish, state, elem.Key, elem.Value)
+	for event := range subStateUpdate.Ch {
+		if event.Type != "key-value" {
+			continue
+		}
+
+		stateUpdate(ch_publish, state, event.Key, event.Value)
 	}
 }
 
@@ -30,7 +34,7 @@ func stateUpdate(publish chan pubsub.PubsubEvent, state *sync.Map, property stri
 func debugLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
+		Data:  pubsub.NewKeyValueEvent("DEBUG", message),
 	}
 
 }

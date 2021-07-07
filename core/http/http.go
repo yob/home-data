@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -104,16 +103,13 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		select {
 		case event := <-sub.Ch:
-			responseCode, err := strconv.Atoi(event.Key)
-			if err == nil {
-				if responseCode >= 200 && responseCode <= 299 {
-					w.WriteHeader(responseCode)
-					fmt.Fprintf(w, event.Value)
-				} else {
-					http.Error(w, event.Value, responseCode)
-				}
+			if event.Type != "http-response" {
+				http.Error(w, "Unexpected event", 500)
+			} else if event.HttpResponse.Status >= 200 && event.HttpResponse.Status <= 299 {
+				w.WriteHeader(event.HttpResponse.Status)
+				fmt.Fprintf(w, event.HttpResponse.Body)
 			} else {
-				http.Error(w, fmt.Sprintf("ERR: failed to generate status code (%v)", err), http.StatusInternalServerError)
+				http.Error(w, event.HttpResponse.Body, event.HttpResponse.Status)
 			}
 			wg.Done()
 		case <-time.After(response_timeout_sec * time.Second):
@@ -122,11 +118,10 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// TODO we need a richer way to pass the HTTP request across the bus, including headers
 	publish := server.bus.PublishChannel()
 	publish <- pubsub.PubsubEvent{
 		Topic: fmt.Sprintf("http-request:%s", r.URL.Path),
-		Data:  pubsub.KeyValueData{Key: reqUUID.String(), Value: string(body)},
+		Data:  pubsub.NewHttpRequestEvent(string(body), reqUUID.String()),
 	}
 
 	// don't leave the func until a response has been published back to the bus
@@ -136,7 +131,7 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func debugLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
+		Data:  pubsub.NewKeyValueEvent("DEBUG", message),
 	}
 
 }
@@ -144,7 +139,7 @@ func debugLog(publish chan pubsub.PubsubEvent, message string) {
 func fatalLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+		Data:  pubsub.NewKeyValueEvent("FATAL", message),
 	}
 
 }

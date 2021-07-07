@@ -55,11 +55,11 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_inside_celcius", config.Name), Value: dev.SensorInfo.HomeTemperature.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.temp_inside_celcius", config.Name), dev.SensorInfo.HomeTemperature.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.temp_outside_celcius", config.Name), Value: dev.SensorInfo.OutsideTemperature.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.temp_outside_celcius", config.Name), dev.SensorInfo.OutsideTemperature.String()),
 		}
 
 		if err := dev.GetControlInfo(); err != nil {
@@ -74,7 +74,7 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.power", config.Name), Value: fmt.Sprintf("%d", powerInt)},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.power", config.Name), fmt.Sprintf("%d", powerInt)),
 		}
 
 		if err := dev.GetWeekPower(); err != nil {
@@ -84,7 +84,7 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: fmt.Sprintf("daikin.%s.watt_hours_today", config.Name), Value: dev.WeekPower.TodayWattHours.String()},
+			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.watt_hours_today", config.Name), dev.WeekPower.TodayWattHours.String()),
 		}
 
 		time.Sleep(20 * time.Second)
@@ -141,7 +141,7 @@ func changeState(bus *pubsub.Pubsub, config Config) {
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
 
 }
@@ -149,7 +149,7 @@ func errorLog(publish chan pubsub.PubsubEvent, message string) {
 func fatalLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+		Data:  pubsub.NewKeyValueEvent("FATAL", message),
 	}
 
 }

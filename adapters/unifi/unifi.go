@@ -49,7 +49,7 @@ func Init(bus *pubsub.Pubsub, config Config) {
 				lastSeen := time.Unix(s.LastSeen, 0).UTC()
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",
-					Data:  pubsub.KeyValueData{Key: fmt.Sprintf("unifi.presence.last_seen.%s", stationName), Value: lastSeen.Format(time.RFC3339)},
+					Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("unifi.presence.last_seen.%s", stationName), lastSeen.Format(time.RFC3339)),
 				}
 			}
 		}
@@ -61,7 +61,7 @@ func Init(bus *pubsub.Pubsub, config Config) {
 func fatalLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "FATAL", Value: message},
+		Data:  pubsub.NewKeyValueEvent("FATAL", message),
 	}
 
 }

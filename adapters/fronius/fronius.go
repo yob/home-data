@@ -40,19 +40,19 @@ func Init(bus *pubsub.Pubsub, address string) {
 
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.grid_draw_watts", Value: gridDrawWatts.String()},
+			Data:  pubsub.NewKeyValueEvent("fronius.inverter.grid_draw_watts", gridDrawWatts.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.power_watts", Value: strconv.FormatFloat(powerWatts, 'f', -1, 64)},
+			Data:  pubsub.NewKeyValueEvent("fronius.inverter.power_watts", strconv.FormatFloat(powerWatts, 'f', -1, 64)),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.generation_watts", Value: generationWatts.String()},
+			Data:  pubsub.NewKeyValueEvent("fronius.inverter.generation_watts", generationWatts.String()),
 		}
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.energy_day_watt_hours", Value: energyDayWh.String()},
+			Data:  pubsub.NewKeyValueEvent("fronius.inverter.energy_day_watt_hours", energyDayWh.String()),
 		}
 
 		resp, err = http.Get(meterDataUrl)
@@ -69,7 +69,7 @@ func Init(bus *pubsub.Pubsub, address string) {
 		gridVoltage := gjson.Get(jsonBody, "Body.Data.0.Voltage_AC_Phase_1")
 		publish <- pubsub.PubsubEvent{
 			Topic: "state:update",
-			Data:  pubsub.KeyValueData{Key: "fronius.inverter.grid_voltage", Value: gridVoltage.String()},
+			Data:  pubsub.NewKeyValueEvent("fronius.inverter.grid_voltage", gridVoltage.String()),
 		}
 	}
 }
@@ -77,7 +77,6 @@ func Init(bus *pubsub.Pubsub, address string) {
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
-
 }

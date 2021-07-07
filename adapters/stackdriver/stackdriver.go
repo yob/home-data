@@ -91,7 +91,7 @@ func stackSubmitGauge(publish chan pubsub.PubsubEvent, property string, value fl
 func debugLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "DEBUG", Value: message},
+		Data:  pubsub.NewKeyValueEvent("DEBUG", message),
 	}
 
 }
@@ -99,7 +99,7 @@ func debugLog(publish chan pubsub.PubsubEvent, message string) {
 func errorLog(publish chan pubsub.PubsubEvent, message string) {
 	publish <- pubsub.PubsubEvent{
 		Topic: "log:new",
-		Data:  pubsub.KeyValueData{Key: "ERROR", Value: message},
+		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
 
 }
