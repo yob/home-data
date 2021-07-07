@@ -106,8 +106,10 @@ func changeState(bus *pubsub.Pubsub, config Config) {
 		return
 	}
 
-	ch_control := bus.Subscribe(fmt.Sprintf("daikin.%s.control", config.Name))
-	for event := range ch_control {
+	subControl, _ := bus.Subscribe(fmt.Sprintf("daikin.%s.control", config.Name))
+	defer subControl.Close()
+
+	for event := range subControl.Ch {
 		if event.Key == "power" && event.Value == "off" {
 			if err := dev.GetControlInfo(); err != nil {
 				errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))

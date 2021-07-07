@@ -7,8 +7,10 @@ import (
 )
 
 func Init(bus *pubsub.Pubsub) {
-	ch_log := bus.Subscribe("log:new")
-	for event := range ch_log {
+	subLog, _ := bus.Subscribe("log:new")
+	defer subLog.Close()
+
+	for event := range subLog.Ch {
 		fmt.Printf("%s: %s\n", event.Key, event.Value)
 	}
 }

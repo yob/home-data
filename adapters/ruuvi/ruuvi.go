@@ -18,8 +18,10 @@ func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
 		Data:  pubsub.KeyValueData{Key: "", Value: "/ruuvi"},
 	}
 
-	chRequests := bus.Subscribe("http-request:/ruuvi")
-	for event := range chRequests {
+	subRequests, _ := bus.Subscribe("http-request:/ruuvi")
+	defer subRequests.Close()
+
+	for event := range subRequests.Ch {
 		reqUUID := event.Key
 		reqBody := event.Value
 

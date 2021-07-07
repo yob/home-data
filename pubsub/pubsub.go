@@ -3,6 +3,8 @@ package pubsub
 import (
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -10,10 +12,18 @@ const (
 )
 
 type Pubsub struct {
-	mu             sync.RWMutex
-	subs           map[string][]chan KeyValueData
-	publishChannel chan PubsubEvent
-	closed         bool
+	mu              sync.RWMutex
+	subs            map[string][]*Subscription
+	publishChannel  chan PubsubEvent
+	closeSubChannel chan string
+	closed          bool
+}
+
+type Subscription struct {
+	Topic   string
+	Ch      chan KeyValueData
+	uuid    string
+	closeCh chan string
 }
 
 type PubsubEvent struct {
@@ -28,18 +38,73 @@ type KeyValueData struct {
 
 func NewPubsub() *Pubsub {
 	ps := &Pubsub{}
-	ps.subs = make(map[string][]chan KeyValueData)
+	ps.subs = make(map[string][]*Subscription)
 	ps.publishChannel = make(chan PubsubEvent, channelBufferSize)
+	ps.closeSubChannel = make(chan string, channelBufferSize)
+
+	// All subscriptions we hand out include a Close() method that will signal
+	// back to us when the receiver isn't using it any more. The signal arrives on
+	// a shared channel for the entire bus, so when it arrives walk through the
+	// live subscriptions to find and remove it
+	//
+	// The current algorithm is super inefficient, but it works. I'll optimise it
+	// when the ineffeciency is a problem.
+	go func() {
+		for {
+			select {
+			case uuidToRemove := <-ps.closeSubChannel:
+				ps.mu.Lock()
+				for topic, subs := range ps.subs {
+					for idx, sub := range subs {
+						if sub.uuid == uuidToRemove {
+							// re-slice to remove the Subscription we don't need any more
+							ps.subs[topic][idx] = ps.subs[topic][len(ps.subs[topic])-1]
+							ps.subs[topic] = ps.subs[topic][:len(ps.subs[topic])-1]
+							continue
+						}
+					}
+
+					// this topic is totally unused now, so we don't need to keep it around
+					if len(ps.subs[topic]) == 0 {
+						delete(ps.subs, topic)
+					}
+				}
+				ps.mu.Unlock()
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}()
+
 	return ps
 }
 
-func (ps *Pubsub) Subscribe(topic string) <-chan KeyValueData {
+// Return a subscription struct that can be used to receive events. It's critical that
+// the subscription is closed when it's not needed any more. A typical pattern looks
+// like this:
+//
+//   subEveryMinute, _ := bus.Subscribe("every:minute")
+//   defer subEveryMinute.Close()
+//   for event := range subEveryMinute.Ch {
+//     // do things with event
+//   }
+//
+func (ps *Pubsub) Subscribe(topic string) (*Subscription, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
-	ch := make(chan KeyValueData, channelBufferSize)
-	ps.subs[topic] = append(ps.subs[topic], ch)
-	return ch
+	subUUID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+
+	sub := &Subscription{
+		Topic:   topic,
+		Ch:      make(chan KeyValueData, channelBufferSize),
+		uuid:    subUUID.String(),
+		closeCh: ps.closeSubChannel,
+	}
+	ps.subs[topic] = append(ps.subs[topic], sub)
+	return sub, nil
 }
 
 func (ps *Pubsub) PublishChannel() chan PubsubEvent {
@@ -55,8 +120,8 @@ func (ps *Pubsub) Run() {
 				continue
 			}
 			ps.mu.RLock()
-			for _, ch := range ps.subs[event.Topic] {
-				ch <- event.Data
+			for _, sub := range ps.subs[event.Topic] {
+				sub.Ch <- event.Data
 			}
 			ps.mu.RUnlock()
 		case <-time.After(10 * time.Millisecond):
@@ -71,9 +136,13 @@ func (ps *Pubsub) Close() {
 	if !ps.closed {
 		ps.closed = true
 		for _, subs := range ps.subs {
-			for _, ch := range subs {
-				close(ch)
+			for _, sub := range subs {
+				close(sub.Ch)
 			}
 		}
 	}
+}
+
+func (s *Subscription) Close() {
+	s.closeCh <- s.uuid
 }

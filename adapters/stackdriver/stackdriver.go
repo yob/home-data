@@ -22,9 +22,11 @@ var (
 )
 
 func Init(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, stateMap map[string]string) {
-	ch_every_minute := bus.Subscribe("every:minute")
+	subEveryMinute, _ := bus.Subscribe("every:minute")
+	defer subEveryMinute.Close()
+
 	googleProjectID = googleProject
-	for _ = range ch_every_minute {
+	for _ = range subEveryMinute.Ch {
 		processEvent(bus.PublishChannel(), localState, stateMap)
 	}
 }

@@ -25,8 +25,10 @@ func Init(bus *pubsub.Pubsub, localState *sync.Map, interestingKeys []string) {
 		return
 	}
 
-	ch_every_minute := bus.Subscribe("every:minute")
-	for _ = range ch_every_minute {
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
 		processEvent(bus.PublishChannel(), localState, interestingKeys)
 	}
 }

@@ -8,9 +8,11 @@ import (
 )
 
 func Init(bus *pubsub.Pubsub, state *sync.Map) {
-	ch_state_update := bus.Subscribe("state:update")
+	subStateUpdate, _ := bus.Subscribe("state:update")
+	defer subStateUpdate.Close()
+
 	ch_publish := bus.PublishChannel()
-	for elem := range ch_state_update {
+	for elem := range subStateUpdate.Ch {
 		stateUpdate(ch_publish, state, elem.Key, elem.Value)
 	}
 }

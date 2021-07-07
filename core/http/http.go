@@ -45,10 +45,12 @@ func Init(bus *pubsub.Pubsub, port int) {
 }
 
 func (server *httpServer) listenForPaths() {
-	chRegister := server.bus.Subscribe("http:register-path")
+	subRegister, _ := server.bus.Subscribe("http:register-path")
+	defer subRegister.Close()
+
 	chPublish := server.bus.PublishChannel()
 
-	for event := range chRegister {
+	for event := range subRegister.Ch {
 		server.pathsMutex.Lock()
 		debugLog(chPublish, fmt.Sprintf("http: registering path (%s)", event.Value))
 		server.paths = append(server.paths, event.Value)
@@ -96,7 +98,9 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wg.Add(1)
-	ch_response := server.bus.Subscribe(fmt.Sprintf("http-response:%s", reqUUID.String()))
+	sub, _ := server.bus.Subscribe(fmt.Sprintf("http-response:%s", reqUUID.String()))
+	defer sub.Close()
+
 	go func() {
 		// We'll only wait this long for a response to arrive on the bus, then return an error
 		timeout := make(chan bool, 1)
@@ -106,7 +110,7 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		select {
-		case event := <-ch_response:
+		case event := <-sub.Ch:
 			responseCode, err := strconv.Atoi(event.Key)
 			if err == nil {
 				if responseCode >= 200 && responseCode <= 299 {
