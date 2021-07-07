@@ -102,13 +102,6 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer sub.Close()
 
 	go func() {
-		// We'll only wait this long for a response to arrive on the bus, then return an error
-		timeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(response_timeout_sec * time.Second)
-			timeout <- true
-		}()
-
 		select {
 		case event := <-sub.Ch:
 			responseCode, err := strconv.Atoi(event.Key)
@@ -123,7 +116,7 @@ func (server *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, fmt.Sprintf("ERR: failed to generate status code (%v)", err), http.StatusInternalServerError)
 			}
 			wg.Done()
-		case <-timeout:
+		case <-time.After(response_timeout_sec * time.Second):
 			http.Error(w, "Timed out waiting for a response to  be generated", http.StatusServiceUnavailable)
 			wg.Done()
 		}
