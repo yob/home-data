@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, address string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, address string) {
 	publish := bus.PublishChannel()
 	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
 	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
@@ -22,7 +23,7 @@ func Init(bus *pubsub.Pubsub, address string) {
 
 		resp, err := http.Get(powerFlowUrl)
 		if err != nil {
-			errorLog(publish, fmt.Sprintf("froniusInverter: %v\n", err))
+			logger.Error(fmt.Sprintf("froniusInverter: %v\n", err))
 			continue
 		}
 		defer resp.Body.Close()
@@ -57,7 +58,7 @@ func Init(bus *pubsub.Pubsub, address string) {
 
 		resp, err = http.Get(meterDataUrl)
 		if err != nil {
-			errorLog(publish, fmt.Sprintf("froniusInverter: %v\n", err))
+			logger.Error(fmt.Sprintf("froniusInverter: %v\n", err))
 			continue
 		}
 		defer resp.Body.Close()
@@ -71,12 +72,5 @@ func Init(bus *pubsub.Pubsub, address string) {
 			Topic: "state:update",
 			Data:  pubsub.NewKeyValueEvent("fronius.inverter.grid_voltage", gridVoltage.String()),
 		}
-	}
-}
-
-func errorLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("ERROR", message),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	"github.com/dim13/unifi"
@@ -22,12 +23,12 @@ type Config struct {
 	IpMap     map[string]string
 }
 
-func Init(bus *pubsub.Pubsub, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
 	publish := bus.PublishChannel()
 
 	u, err := unifi.Login(config.UnifiUser, config.UnifiPass, config.Address, config.UnifiPort, config.UnifiSite, unifiApiVersion)
 	if err != nil {
-		fatalLog(publish, fmt.Sprintf("Unifi login returned error: %v", err))
+		logger.Fatal(fmt.Sprintf("Unifi login returned error: %v", err))
 		return
 	}
 	defer u.Logout()
@@ -35,12 +36,12 @@ func Init(bus *pubsub.Pubsub, config Config) {
 	for {
 		site, err := u.Site("default")
 		if err != nil {
-			fatalLog(publish, fmt.Sprintf("%v", err))
+			logger.Fatal(fmt.Sprintf("%v", err))
 			return
 		}
 		stations, err := u.Sta(site)
 		if err != nil {
-			fatalLog(publish, fmt.Sprintf("%v", err))
+			logger.Fatal(fmt.Sprintf("%v", err))
 			return
 		}
 
@@ -56,12 +57,4 @@ func Init(bus *pubsub.Pubsub, config Config) {
 
 		time.Sleep(20 * time.Second)
 	}
-}
-
-func fatalLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("FATAL", message),
-	}
-
 }

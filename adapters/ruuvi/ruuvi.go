@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/tidwall/gjson"
+	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, addressmap map[string]string) {
 	publish := bus.PublishChannel()
 
 	publish <- pubsub.PubsubEvent{
@@ -27,9 +28,9 @@ func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
 		}
 		reqUUID := event.Key
 
-		err := handleRequest(bus, addressmap, event.HttpRequest.Body)
+		err := handleRequest(bus, logger, addressmap, event.HttpRequest.Body)
 		if err != nil {
-			errorLog(publish, fmt.Sprintf("ruuvi: error handling request (%v)", err))
+			logger.Error(fmt.Sprintf("ruuvi: error handling request (%v)", err))
 
 			publish <- pubsub.PubsubEvent{
 				Topic: fmt.Sprintf("http-response:%s", reqUUID),
@@ -45,7 +46,7 @@ func Init(bus *pubsub.Pubsub, addressmap map[string]string) {
 	}
 }
 
-func handleRequest(bus *pubsub.Pubsub, addressMap map[string]string, jsonBody string) error {
+func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[string]string, jsonBody string) error {
 	publish := bus.PublishChannel()
 
 	if !gjson.Valid(jsonBody) {
@@ -89,7 +90,7 @@ func handleRequest(bus *pubsub.Pubsub, addressMap map[string]string, jsonBody st
 				Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), strconv.FormatFloat(dewpoint, 'f', -1, 64)),
 			}
 		} else {
-			errorLog(publish, fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
+			logger.Error(fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
 		}
 	}
 
@@ -115,12 +116,4 @@ func calculateDewPoint(T float64, H float64) (float64, error) {
 	// Magnus formula
 	alpha := math.Log(H/100) + a*T/(b+T)
 	return math.Round(((b*alpha)/(a-alpha))*100) / 100, nil
-}
-
-func errorLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("ERROR", message),
-	}
-
 }

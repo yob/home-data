@@ -42,7 +42,8 @@ func main() {
 
 	// update the shared state when attributes change
 	go func() {
-		statebus.Init(pubsub, &state)
+		logger := logging.NewLogger(pubsub)
+		statebus.Init(pubsub, logger, &state)
 	}()
 
 	// Give the core functions time to setup before we start registering adapters.
@@ -96,7 +97,8 @@ func main() {
 			"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
 		}
 		googleProjectID := "our-house-data"
-		stackdriver.Init(pubsub, googleProjectID, &state, stateMap)
+		logger := logging.NewLogger(pubsub)
+		stackdriver.Init(pubsub, logger, googleProjectID, &state, stateMap)
 	}()
 
 	// send data to datadog every minute
@@ -156,7 +158,8 @@ func main() {
 			"amber.general.renewables",
 			"amber.feedin.cents_per_kwh",
 		}
-		datadog.Init(pubsub, &state, interestingKeys)
+		logger := logging.NewLogger(pubsub)
+		datadog.Init(pubsub, logger, &state, interestingKeys)
 	}()
 
 	// daikin plugin, one per unit
@@ -165,7 +168,8 @@ func main() {
 			Address: "10.1.1.110",
 			Name:    "kitchen",
 		}
-		daikin.Init(pubsub, config)
+		logger := logging.NewLogger(pubsub)
+		daikin.Init(pubsub, logger, config)
 	}()
 	go func() {
 		config := daikin.Config{
@@ -173,7 +177,8 @@ func main() {
 			Name:    "study",
 			Token:   os.Getenv("DAIKIN_STUDY_TOKEN"),
 		}
-		daikin.Init(pubsub, config)
+		logger := logging.NewLogger(pubsub)
+		daikin.Init(pubsub, logger, config)
 	}()
 	go func() {
 		config := daikin.Config{
@@ -181,17 +186,20 @@ func main() {
 			Name:    "lounge",
 			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
 		}
-		daikin.Init(pubsub, config)
+		logger := logging.NewLogger(pubsub)
+		daikin.Init(pubsub, logger, config)
 	}()
 
 	// amber plugin
 	go func() {
-		amber.Init(pubsub, os.Getenv("AMBER_API_KEY"))
+		logger := logging.NewLogger(pubsub)
+		amber.Init(pubsub, logger, os.Getenv("AMBER_API_KEY"))
 	}()
 
 	// fronius plugin, one per inverter
 	go func() {
-		fronius.Init(pubsub, "10.1.1.69")
+		logger := logging.NewLogger(pubsub)
+		fronius.Init(pubsub, logger, "10.1.1.69")
 	}()
 
 	// ruuvi plugin
@@ -205,7 +213,8 @@ func main() {
 			"fd:54:a9:f0:a8:a5": "outside",
 		}
 
-		ruuvi.Init(pubsub, addressmap)
+		logger := logging.NewLogger(pubsub)
+		ruuvi.Init(pubsub, logger, addressmap)
 	}()
 
 	// unifi plugin, one per network to detect presense of specific people
@@ -221,7 +230,8 @@ func main() {
 				"10.1.1.134": "andrea",
 			},
 		}
-		unifi.Init(pubsub, config)
+		logger := logging.NewLogger(pubsub)
+		unifi.Init(pubsub, logger, config)
 	}()
 
 	// loop forever, shuffling events between goroutines

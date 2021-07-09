@@ -7,13 +7,14 @@ import (
 	"time"
 
 	amberClient "github.com/yob/home-data/amber"
+	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, apiKey string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, apiKey string) {
 	publish := bus.PublishChannel()
 	if apiKey == "" {
-		fatalLog(publish, "amber: API key not found")
+		logger.Fatal("amber: API key not found")
 		return
 	}
 
@@ -22,12 +23,12 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 	ctx := context.Background()
 	sites, err := client.GetSites(ctx)
 	if err != nil {
-		fatalLog(publish, fmt.Sprintf("amber: error fetching sites - %v", err))
+		logger.Fatal(fmt.Sprintf("amber: error fetching sites - %v", err))
 		return
 	}
 
 	if len(sites) != 1 {
-		fatalLog(publish, fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
+		logger.Fatal(fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
 		return
 	}
 	site := sites[0]
@@ -39,7 +40,7 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 		prices, err := client.GetCurrentPrices(ctx, site)
 
 		if err != nil {
-			errorLog(publish, fmt.Sprintf("amber: error fetching prices - %v", err))
+			logger.Error(fmt.Sprintf("amber: error fetching prices - %v", err))
 			continue
 		}
 		generalPrice := amberClient.Price{}
@@ -75,19 +76,5 @@ func Init(bus *pubsub.Pubsub, apiKey string) {
 				Data:  pubsub.NewKeyValueEvent("amber.feedin.cents_per_kwh", strconv.FormatFloat(feedInPrice.PerKwh, 'f', -1, 64)),
 			}
 		}
-	}
-}
-
-func errorLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("ERROR", message),
-	}
-}
-
-func fatalLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("FATAL", message),
 	}
 }

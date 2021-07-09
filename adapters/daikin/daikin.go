@@ -6,6 +6,7 @@ import (
 	"time"
 
 	daikinClient "github.com/buxtronix/go-daikin"
+	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
 )
 
@@ -15,41 +16,41 @@ type Config struct {
 	Token   string
 }
 
-func Init(bus *pubsub.Pubsub, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
-		broadcastState(bus, config)
+		broadcastState(bus, logger, config)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		changeState(bus, config)
+		changeState(bus, logger, config)
 		wg.Done()
 	}()
 
 	wg.Wait()
 }
 
-func broadcastState(bus *pubsub.Pubsub, config Config) {
+func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
 	publish := bus.PublishChannel()
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.Address, config.Token))
 	if err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		logger.Fatal(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
 	dev := d.Devices[config.Address]
 	if err := dev.GetControlInfo(); err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		logger.Fatal(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
 	for {
 		if err := dev.GetSensorInfo(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+			logger.Error(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
@@ -63,7 +64,7 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 		}
 
 		if err := dev.GetControlInfo(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+			logger.Error(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
@@ -78,7 +79,7 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 		}
 
 		if err := dev.GetWeekPower(); err != nil {
-			errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+			logger.Error(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 			continue
 		}
 
@@ -91,18 +92,16 @@ func broadcastState(bus *pubsub.Pubsub, config Config) {
 	}
 }
 
-func changeState(bus *pubsub.Pubsub, config Config) {
-	publish := bus.PublishChannel()
-
+func changeState(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.Address, config.Token))
 	if err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		logger.Fatal(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
 	dev := d.Devices[config.Address]
 	if err := dev.GetControlInfo(); err != nil {
-		fatalLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+		logger.Fatal(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 		return
 	}
 
@@ -112,44 +111,28 @@ func changeState(bus *pubsub.Pubsub, config Config) {
 	for event := range subControl.Ch {
 		if event.Key == "power" && event.Value == "off" {
 			if err := dev.GetControlInfo(); err != nil {
-				errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+				logger.Error(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 				continue
 			}
 
 			dev.ControlInfo.Power = daikinClient.PowerOff
 			if err := dev.SetControlInfo(); err != nil {
-				errorLog(publish, fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
+				logger.Error(fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
 				continue
 			}
 		} else if event.Key == "power" && event.Value == "on" {
 			if err := dev.GetControlInfo(); err != nil {
-				errorLog(publish, fmt.Sprintf("daikin (%s): %v", config.Name, err))
+				logger.Error(fmt.Sprintf("daikin (%s): %v", config.Name, err))
 				continue
 			}
 
 			dev.ControlInfo.Power = daikinClient.PowerOn
 			if err := dev.SetControlInfo(); err != nil {
-				errorLog(publish, fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
+				logger.Error(fmt.Sprintf("daikin (%s): error setting control: %v", config.Name, err))
 				continue
 			}
 		} else {
-			errorLog(publish, fmt.Sprintf("daikin (%s): unrecognised event: %v", config.Name, event))
+			logger.Error(fmt.Sprintf("daikin (%s): unrecognised event: %v", config.Name, event))
 		}
 	}
-}
-
-func errorLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("ERROR", message),
-	}
-
-}
-
-func fatalLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("FATAL", message),
-	}
-
 }

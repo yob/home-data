@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3"
@@ -21,35 +22,35 @@ var (
 	googleProjectID = ""
 )
 
-func Init(bus *pubsub.Pubsub, googleProject string, localState *sync.Map, stateMap map[string]string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, googleProject string, localState *sync.Map, stateMap map[string]string) {
 	subEveryMinute, _ := bus.Subscribe("every:minute")
 	defer subEveryMinute.Close()
 
 	googleProjectID = googleProject
 	for _ = range subEveryMinute.Ch {
-		processEvent(bus.PublishChannel(), localState, stateMap)
+		processEvent(logger, localState, stateMap)
 	}
 }
 
-func processEvent(publish chan pubsub.PubsubEvent, localState *sync.Map, stateMap map[string]string) {
+func processEvent(logger *logging.Logger, localState *sync.Map, stateMap map[string]string) {
 	for stateKey, stackdriverMetricName := range stateMap {
 		if value, ok := localState.Load(stateKey); ok {
 			value64, err := strconv.ParseFloat(value.(string), 8)
 			if err == nil {
-				stackSubmitGauge(publish, stackdriverMetricName, value64)
+				stackSubmitGauge(logger, stackdriverMetricName, value64)
 			}
 		} else {
-			debugLog(publish, fmt.Sprintf("stackdriver: failed to read %s from state", stateKey))
+			logger.Debug(fmt.Sprintf("stackdriver: failed to read %s from state", stateKey))
 		}
 	}
 }
 
-func stackSubmitGauge(publish chan pubsub.PubsubEvent, property string, value float64) {
+func stackSubmitGauge(logger *logging.Logger, property string, value float64) {
 	metricType := fmt.Sprintf("custom.googleapis.com/%s", property)
 	ctx := context.Background()
 	client, err := monitoring.NewMetricClient(ctx)
 	if err != nil {
-		errorLog(publish, fmt.Sprintf("stackdriver (stackSubmitGauge): %v", err))
+		logger.Error(fmt.Sprintf("stackdriver (stackSubmitGauge): %v", err))
 		return
 	}
 	defer client.Close()
@@ -78,28 +79,12 @@ func stackSubmitGauge(publish chan pubsub.PubsubEvent, property string, value fl
 			}},
 		}},
 	}
-	debugLog(publish, fmt.Sprintf("stackdriver: wrote metric %+v", req))
+	logger.Debug(fmt.Sprintf("stackdriver: wrote metric %+v", req))
 
 	err = client.CreateTimeSeries(ctx, req)
 	if err != nil {
-		errorLog(publish, fmt.Sprintf("stackdriver: could not write time series value, %v ", err))
+		logger.Error(fmt.Sprintf("stackdriver: could not write time series value, %v ", err))
 		return
 	}
 	return
-}
-
-func debugLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("DEBUG", message),
-	}
-
-}
-
-func errorLog(publish chan pubsub.PubsubEvent, message string) {
-	publish <- pubsub.PubsubEvent{
-		Topic: "log:new",
-		Data:  pubsub.NewKeyValueEvent("ERROR", message),
-	}
-
 }
