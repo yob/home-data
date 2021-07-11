@@ -8,10 +8,15 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, addressmap map[string]string) {
+type Config struct {
+	AddressMap map[string]string
+}
+
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	publish := bus.PublishChannel()
 
 	publish <- pubsub.PubsubEvent{
@@ -28,7 +33,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, addressmap map[string]stri
 		}
 		reqUUID := event.Key
 
-		err := handleRequest(bus, logger, addressmap, event.HttpRequest.Body)
+		err := handleRequest(bus, logger, config.AddressMap, event.HttpRequest.Body)
 		if err != nil {
 			logger.Error(fmt.Sprintf("ruuvi: error handling request (%v)", err))
 

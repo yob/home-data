@@ -8,17 +8,22 @@ import (
 
 	amberClient "github.com/yob/home-data/amber"
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, apiKey string) {
+type Config struct {
+	Token string
+}
+
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	publish := bus.PublishChannel()
-	if apiKey == "" {
+	if config.Token == "" {
 		logger.Fatal("amber: API key not found")
 		return
 	}
 
-	client := amberClient.NewClient(apiKey)
+	client := amberClient.NewClient(config.Token)
 
 	ctx := context.Background()
 	sites, err := client.GetSites(ctx)

@@ -10,13 +10,18 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, address string) {
+type Config struct {
+	Address string
+}
+
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	publish := bus.PublishChannel()
-	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
-	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
+	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", config.Address)
+	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", config.Address)
 
 	for {
 		time.Sleep(20 * time.Second)

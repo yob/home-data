@@ -7,6 +7,7 @@ import (
 
 	daikinClient "github.com/buxtronix/go-daikin"
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
@@ -16,7 +17,7 @@ type Config struct {
 	Token   string
 }
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)

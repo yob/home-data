@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	"github.com/dim13/unifi"
@@ -23,7 +24,7 @@ type Config struct {
 	IpMap     map[string]string
 }
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	publish := bus.PublishChannel()
 
 	u, err := unifi.Login(config.UnifiUser, config.UnifiPass, config.Address, config.UnifiPort, config.UnifiSite, unifiApiVersion)

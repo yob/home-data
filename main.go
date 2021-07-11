@@ -52,120 +52,124 @@ func main() {
 
 	// send data to stack driver every minute
 	go func() {
-		stateMap := map[string]string{
-			"daikin.kitchen.temp_inside_celcius":  "daikin.kitchen.inside_temp",
-			"daikin.kitchen.temp_outside_celcius": "daikin.kitchen.outside_temp",
-			"daikin.kitchen.power":                "daikin.kitchen.power",
-			"daikin.kitchen.watt_hours_today":     "daikin.kitchen.power_watt_hours",
-			"daikin.lounge.temp_inside_celcius":   "daikin.lounge.inside_temp",
-			"daikin.lounge.temp_outside_celcius":  "daikin.lounge.outside_temp",
-			"daikin.lounge.power":                 "daikin.lounge.power",
-			"daikin.lounge.watt_hours_today":      "daikin.lounge.power_watt_hours",
-			"daikin.study.temp_inside_celcius":    "daikin.study.inside_temp",
-			"daikin.study.temp_outside_celcius":   "daikin.study.outside_temp",
-			"daikin.study.power":                  "daikin.study.power",
-			"daikin.study.watt_hours_today":       "daikin.study.power_watt_hours",
+		config := stackdriver.Config{
+			GoogleProjectID: "our-house-data",
+			StateMap: map[string]string{
+				"daikin.kitchen.temp_inside_celcius":  "daikin.kitchen.inside_temp",
+				"daikin.kitchen.temp_outside_celcius": "daikin.kitchen.outside_temp",
+				"daikin.kitchen.power":                "daikin.kitchen.power",
+				"daikin.kitchen.watt_hours_today":     "daikin.kitchen.power_watt_hours",
+				"daikin.lounge.temp_inside_celcius":   "daikin.lounge.inside_temp",
+				"daikin.lounge.temp_outside_celcius":  "daikin.lounge.outside_temp",
+				"daikin.lounge.power":                 "daikin.lounge.power",
+				"daikin.lounge.watt_hours_today":      "daikin.lounge.power_watt_hours",
+				"daikin.study.temp_inside_celcius":    "daikin.study.inside_temp",
+				"daikin.study.temp_outside_celcius":   "daikin.study.outside_temp",
+				"daikin.study.power":                  "daikin.study.power",
+				"daikin.study.watt_hours_today":       "daikin.study.power_watt_hours",
 
-			"fronius.inverter.grid_draw_watts":       "grid_draw_watts",
-			"fronius.inverter.power_watts":           "power_watts",
-			"fronius.inverter.generation_watts":      "generation_watts",
-			"fronius.inverter.energy_day_watt_hours": "energy_day_watt_hours",
-			"fronius.inverter.grid_voltage":          "grid_voltage",
+				"fronius.inverter.grid_draw_watts":       "grid_draw_watts",
+				"fronius.inverter.power_watts":           "power_watts",
+				"fronius.inverter.generation_watts":      "generation_watts",
+				"fronius.inverter.energy_day_watt_hours": "energy_day_watt_hours",
+				"fronius.inverter.grid_voltage":          "grid_voltage",
 
-			"ruuvi.study.temp_celcius": "ruuvi.study.temp",
-			"ruuvi.study.humidity":     "ruuvi.study.humidity",
-			"ruuvi.study.pressure":     "ruuvi.study.pressure",
+				"ruuvi.study.temp_celcius": "ruuvi.study.temp",
+				"ruuvi.study.humidity":     "ruuvi.study.humidity",
+				"ruuvi.study.pressure":     "ruuvi.study.pressure",
 
-			"ruuvi.bed1.temp_celcius": "ruuvi.bed1.temp",
-			"ruuvi.bed1.humidity":     "ruuvi.bed1.humidity",
-			"ruuvi.bed1.pressure":     "ruuvi.bed1.pressure",
+				"ruuvi.bed1.temp_celcius": "ruuvi.bed1.temp",
+				"ruuvi.bed1.humidity":     "ruuvi.bed1.humidity",
+				"ruuvi.bed1.pressure":     "ruuvi.bed1.pressure",
 
-			"ruuvi.bed2.temp_celcius": "ruuvi.bed2.temp",
-			"ruuvi.bed2.humidity":     "ruuvi.bed2.humidity",
-			"ruuvi.bed2.pressure":     "ruuvi.bed2.pressure",
+				"ruuvi.bed2.temp_celcius": "ruuvi.bed2.temp",
+				"ruuvi.bed2.humidity":     "ruuvi.bed2.humidity",
+				"ruuvi.bed2.pressure":     "ruuvi.bed2.pressure",
 
-			"ruuvi.lounge.temp_celcius": "ruuvi.lounge.temp",
-			"ruuvi.lounge.humidity":     "ruuvi.lounge.humidity",
-			"ruuvi.lounge.pressure":     "ruuvi.lounge.pressure",
+				"ruuvi.lounge.temp_celcius": "ruuvi.lounge.temp",
+				"ruuvi.lounge.humidity":     "ruuvi.lounge.humidity",
+				"ruuvi.lounge.pressure":     "ruuvi.lounge.pressure",
 
-			"ruuvi.kitchen.temp_celcius": "ruuvi.kitchen.temp",
-			"ruuvi.kitchen.humidity":     "ruuvi.kitchen.humidity",
-			"ruuvi.kitchen.pressure":     "ruuvi.kitchen.pressure",
+				"ruuvi.kitchen.temp_celcius": "ruuvi.kitchen.temp",
+				"ruuvi.kitchen.humidity":     "ruuvi.kitchen.humidity",
+				"ruuvi.kitchen.pressure":     "ruuvi.kitchen.pressure",
 
-			"ruuvi.outside.temp_celcius": "ruuvi.outside.temp",
-			"ruuvi.outside.humidity":     "ruuvi.outside.humidity",
-			"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
+				"ruuvi.outside.temp_celcius": "ruuvi.outside.temp",
+				"ruuvi.outside.humidity":     "ruuvi.outside.humidity",
+				"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
+			},
 		}
-		googleProjectID := "our-house-data"
 		logger := logging.NewLogger(pubsub)
-		stackdriver.Init(pubsub, logger, googleProjectID, state.ReadOnly(), stateMap)
+		stackdriver.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// send data to datadog every minute
 	go func() {
-		interestingKeys := []string{
-			"daikin.kitchen.temp_inside_celcius",
-			"daikin.kitchen.temp_outside_celcius",
-			"daikin.kitchen.power",
-			"daikin.kitchen.watt_hours_today",
-			"daikin.lounge.temp_inside_celcius",
-			"daikin.lounge.temp_outside_celcius",
-			"daikin.lounge.power",
-			"daikin.lounge.watt_hours_today",
-			"daikin.study.temp_inside_celcius",
-			"daikin.study.temp_outside_celcius",
-			"daikin.study.power",
-			"daikin.study.watt_hours_today",
+		config := datadog.Config{
+			InterestingKeys: []string{
+				"daikin.kitchen.temp_inside_celcius",
+				"daikin.kitchen.temp_outside_celcius",
+				"daikin.kitchen.power",
+				"daikin.kitchen.watt_hours_today",
+				"daikin.lounge.temp_inside_celcius",
+				"daikin.lounge.temp_outside_celcius",
+				"daikin.lounge.power",
+				"daikin.lounge.watt_hours_today",
+				"daikin.study.temp_inside_celcius",
+				"daikin.study.temp_outside_celcius",
+				"daikin.study.power",
+				"daikin.study.watt_hours_today",
 
-			"fronius.inverter.grid_draw_watts",
-			"fronius.inverter.power_watts",
-			"fronius.inverter.generation_watts",
-			"fronius.inverter.energy_day_watt_hours",
-			"fronius.inverter.grid_voltage",
+				"fronius.inverter.grid_draw_watts",
+				"fronius.inverter.power_watts",
+				"fronius.inverter.generation_watts",
+				"fronius.inverter.energy_day_watt_hours",
+				"fronius.inverter.grid_voltage",
 
-			"ruuvi.study.temp_celcius",
-			"ruuvi.study.humidity",
-			"ruuvi.study.pressure",
-			"ruuvi.study.dewpoint_celcius",
-			"ruuvi.study.absolute_humidity_g_per_m3",
+				"ruuvi.study.temp_celcius",
+				"ruuvi.study.humidity",
+				"ruuvi.study.pressure",
+				"ruuvi.study.dewpoint_celcius",
+				"ruuvi.study.absolute_humidity_g_per_m3",
 
-			"ruuvi.bed1.temp_celcius",
-			"ruuvi.bed1.humidity",
-			"ruuvi.bed1.pressure",
-			"ruuvi.bed1.dewpoint_celcius",
-			"ruuvi.bed1.absolute_humidity_g_per_m3",
+				"ruuvi.bed1.temp_celcius",
+				"ruuvi.bed1.humidity",
+				"ruuvi.bed1.pressure",
+				"ruuvi.bed1.dewpoint_celcius",
+				"ruuvi.bed1.absolute_humidity_g_per_m3",
 
-			"ruuvi.bed2.temp_celcius",
-			"ruuvi.bed2.humidity",
-			"ruuvi.bed2.pressure",
-			"ruuvi.bed2.dewpoint_celcius",
-			"ruuvi.bed2.absolute_humidity_g_per_m3",
+				"ruuvi.bed2.temp_celcius",
+				"ruuvi.bed2.humidity",
+				"ruuvi.bed2.pressure",
+				"ruuvi.bed2.dewpoint_celcius",
+				"ruuvi.bed2.absolute_humidity_g_per_m3",
 
-			"ruuvi.lounge.temp_celcius",
-			"ruuvi.lounge.humidity",
-			"ruuvi.lounge.pressure",
-			"ruuvi.lounge.dewpoint_celcius",
-			"ruuvi.lounge.absolute_humidity_g_per_m3",
+				"ruuvi.lounge.temp_celcius",
+				"ruuvi.lounge.humidity",
+				"ruuvi.lounge.pressure",
+				"ruuvi.lounge.dewpoint_celcius",
+				"ruuvi.lounge.absolute_humidity_g_per_m3",
 
-			"ruuvi.kitchen.temp_celcius",
-			"ruuvi.kitchen.humidity",
-			"ruuvi.kitchen.pressure",
-			"ruuvi.kitchen.dewpoint_celcius",
-			"ruuvi.kitchen.absolute_humidity_g_per_m3",
+				"ruuvi.kitchen.temp_celcius",
+				"ruuvi.kitchen.humidity",
+				"ruuvi.kitchen.pressure",
+				"ruuvi.kitchen.dewpoint_celcius",
+				"ruuvi.kitchen.absolute_humidity_g_per_m3",
 
-			"ruuvi.outside.temp_celcius",
-			"ruuvi.outside.humidity",
-			"ruuvi.outside.pressure",
-			"ruuvi.outside.dewpoint_celcius",
-			"ruuvi.outside.absolute_humidity_g_per_m3",
+				"ruuvi.outside.temp_celcius",
+				"ruuvi.outside.humidity",
+				"ruuvi.outside.pressure",
+				"ruuvi.outside.dewpoint_celcius",
+				"ruuvi.outside.absolute_humidity_g_per_m3",
 
-			"amber.general.cents_per_kwh",
-			"amber.general.spot_cents_per_kwh",
-			"amber.general.renewables",
-			"amber.feedin.cents_per_kwh",
+				"amber.general.cents_per_kwh",
+				"amber.general.spot_cents_per_kwh",
+				"amber.general.renewables",
+				"amber.feedin.cents_per_kwh",
+			},
 		}
 		logger := logging.NewLogger(pubsub)
-		datadog.Init(pubsub, logger, state.ReadOnly(), interestingKeys)
+		datadog.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// daikin plugin, one per unit
@@ -175,7 +179,7 @@ func main() {
 			Name:    "kitchen",
 		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 	go func() {
 		config := daikin.Config{
@@ -184,7 +188,7 @@ func main() {
 			Token:   os.Getenv("DAIKIN_STUDY_TOKEN"),
 		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 	go func() {
 		config := daikin.Config{
@@ -193,34 +197,42 @@ func main() {
 			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
 		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// amber plugin
 	go func() {
+		config := amber.Config{
+			Token: os.Getenv("AMBER_API_KEY"),
+		}
 		logger := logging.NewLogger(pubsub)
-		amber.Init(pubsub, logger, os.Getenv("AMBER_API_KEY"))
+		amber.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// fronius plugin, one per inverter
 	go func() {
+		config := fronius.Config{
+			Address: "10.1.1.69",
+		}
 		logger := logging.NewLogger(pubsub)
-		fronius.Init(pubsub, logger, "10.1.1.69")
+		fronius.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// ruuvi plugin
 	go func() {
-		var addressmap = map[string]string{
-			"cc:64:a6:ed:f6:aa": "study",
-			"f2:b0:81:51:8a:e0": "bed1",
-			"fb:dd:03:59:e8:26": "bed2",
-			"ef:81:7d:23:3c:74": "lounge",
-			"c2:69:9e:be:25:aa": "kitchen",
-			"fd:54:a9:f0:a8:a5": "outside",
+		config := ruuvi.Config{
+			AddressMap: map[string]string{
+				"cc:64:a6:ed:f6:aa": "study",
+				"f2:b0:81:51:8a:e0": "bed1",
+				"fb:dd:03:59:e8:26": "bed2",
+				"ef:81:7d:23:3c:74": "lounge",
+				"c2:69:9e:be:25:aa": "kitchen",
+				"fd:54:a9:f0:a8:a5": "outside",
+			},
 		}
 
 		logger := logging.NewLogger(pubsub)
-		ruuvi.Init(pubsub, logger, addressmap)
+		ruuvi.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// unifi plugin, one per network to detect presense of specific people
@@ -237,7 +249,7 @@ func main() {
 			},
 		}
 		logger := logging.NewLogger(pubsub)
-		unifi.Init(pubsub, logger, config)
+		unifi.Init(pubsub, logger, state.ReadOnly(), config)
 	}()
 
 	// loop forever, shuffling events between goroutines

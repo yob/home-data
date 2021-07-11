@@ -14,7 +14,11 @@ import (
 	datadog "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, interestingKeys []string) {
+type Config struct {
+	InterestingKeys []string
+}
+
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	apiKey := os.Getenv("DD_API_KEY")
 	if apiKey == "" {
 		logger.Fatal("env var DD_API_KEY must be set for metrics to be submitted to datadog")
@@ -30,7 +34,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 	defer sub.Close()
 
 	for _ = range sub.Ch {
-		processEvent(logger, state, interestingKeys)
+		processEvent(logger, state, config.InterestingKeys)
 	}
 }
 

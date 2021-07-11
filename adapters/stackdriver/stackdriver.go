@@ -22,13 +22,18 @@ var (
 	googleProjectID = ""
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, googleProject string, state memorystate.StateReader, stateMap map[string]string) {
+type Config struct {
+	GoogleProjectID string
+	StateMap        map[string]string
+}
+
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
 	subEveryMinute, _ := bus.Subscribe("every:minute")
 	defer subEveryMinute.Close()
 
-	googleProjectID = googleProject
+	googleProjectID = config.GoogleProjectID
 	for _ = range subEveryMinute.Ch {
-		processEvent(logger, state, stateMap)
+		processEvent(logger, state, config.StateMap)
 	}
 }
 
