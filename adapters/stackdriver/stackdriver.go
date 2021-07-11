@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	monitoring "cloud.google.com/go/monitoring/apiv3"
@@ -22,20 +22,20 @@ var (
 	googleProjectID = ""
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, googleProject string, localState *sync.Map, stateMap map[string]string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, googleProject string, state memorystate.StateReader, stateMap map[string]string) {
 	subEveryMinute, _ := bus.Subscribe("every:minute")
 	defer subEveryMinute.Close()
 
 	googleProjectID = googleProject
 	for _ = range subEveryMinute.Ch {
-		processEvent(logger, localState, stateMap)
+		processEvent(logger, state, stateMap)
 	}
 }
 
-func processEvent(logger *logging.Logger, localState *sync.Map, stateMap map[string]string) {
+func processEvent(logger *logging.Logger, state memorystate.StateReader, stateMap map[string]string) {
 	for stateKey, stackdriverMetricName := range stateMap {
-		if value, ok := localState.Load(stateKey); ok {
-			value64, err := strconv.ParseFloat(value.(string), 8)
+		if value, ok := state.Read(stateKey); ok {
+			value64, err := strconv.ParseFloat(value, 8)
 			if err == nil {
 				stackSubmitGauge(logger, stackdriverMetricName, value64)
 			}

@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	datadog "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, localState *sync.Map, interestingKeys []string) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, interestingKeys []string) {
 	apiKey := os.Getenv("DD_API_KEY")
 	if apiKey == "" {
 		logger.Fatal("env var DD_API_KEY must be set for metrics to be submitted to datadog")
@@ -30,14 +30,14 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, localState *sync.Map, inte
 	defer sub.Close()
 
 	for _ = range sub.Ch {
-		processEvent(logger, localState, interestingKeys)
+		processEvent(logger, state, interestingKeys)
 	}
 }
 
-func processEvent(logger *logging.Logger, localState *sync.Map, interestingKeys []string) {
+func processEvent(logger *logging.Logger, state memorystate.StateReader, interestingKeys []string) {
 	for _, stateKey := range interestingKeys {
-		if value, ok := localState.Load(stateKey); ok {
-			value64, err := strconv.ParseFloat(value.(string), 8)
+		if value, ok := state.Read(stateKey); ok {
+			value64, err := strconv.ParseFloat(value, 8)
 			if err == nil {
 				ddSubmitGauge(logger, stateKey, value64)
 			}

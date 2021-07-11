@@ -2,13 +2,13 @@ package statebus
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state *sync.Map) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state *memorystate.State) {
 	subStateUpdate, _ := bus.Subscribe("state:update")
 	defer subStateUpdate.Close()
 
@@ -21,8 +21,8 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state *sync.Map) {
 	}
 }
 
-func stateUpdate(logger *logging.Logger, state *sync.Map, property string, value string) {
-	existingValue, ok := state.Load(property)
+func stateUpdate(logger *logging.Logger, state *memorystate.State, property string, value string) {
+	existingValue, ok := state.Read(property)
 
 	// if the property doesn't exist in the state yet, or it exists with a different value, then update it
 	if !ok || existingValue != value {

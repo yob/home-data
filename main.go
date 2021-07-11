@@ -2,11 +2,11 @@ package main
 
 import (
 	"os"
-	"sync"
 	"time"
 
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
+	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/core/statebus"
 	"github.com/yob/home-data/core/timers"
 
@@ -22,7 +22,7 @@ import (
 
 func main() {
 	pubsub := pub.NewPubsub()
-	state := sync.Map{} // map[string]string{}
+	state := memorystate.New()
 
 	// webserver, as an alternative way to injest events
 	go func() {
@@ -43,7 +43,7 @@ func main() {
 	// update the shared state when attributes change
 	go func() {
 		logger := logging.NewLogger(pubsub)
-		statebus.Init(pubsub, logger, &state)
+		statebus.Init(pubsub, logger, state)
 	}()
 
 	// Give the core functions time to setup before we start registering adapters.
@@ -98,7 +98,7 @@ func main() {
 		}
 		googleProjectID := "our-house-data"
 		logger := logging.NewLogger(pubsub)
-		stackdriver.Init(pubsub, logger, googleProjectID, &state, stateMap)
+		stackdriver.Init(pubsub, logger, googleProjectID, state.ReadOnly(), stateMap)
 	}()
 
 	// send data to datadog every minute
@@ -165,7 +165,7 @@ func main() {
 			"amber.feedin.cents_per_kwh",
 		}
 		logger := logging.NewLogger(pubsub)
-		datadog.Init(pubsub, logger, &state, interestingKeys)
+		datadog.Init(pubsub, logger, state.ReadOnly(), interestingKeys)
 	}()
 
 	// daikin plugin, one per unit
