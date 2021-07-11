@@ -92,9 +92,41 @@ func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[st
 		} else {
 			logger.Error(fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
 		}
+
+		absoluteHumidity, err := calculateAbsoluteHumidity(temp.Float(), humidity.Float())
+		if err == nil {
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.absolute_humidity_g_per_m3", ruuviName), strconv.FormatFloat(absoluteHumidity, 'f', -1, 64)),
+			}
+		} else {
+			logger.Error(fmt.Sprintf("ruuvi: error calculating absolute humidity - %v", err))
+		}
 	}
 
 	return nil
+}
+
+// The formula is from https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
+// I've checked the output against the absolute humidity numbers I can see in the ruuvi android app the they're match to
+// within a few hundredths of a gram. Good enough?
+//
+func calculateAbsoluteHumidity(T float64, H float64) (float64, error) {
+	// Check if the transferred value for the temperature is within the valid range
+	if T < -45 || T > 60 {
+		return 0, errors.New("Temperature must be between (-45 - +60°C)")
+	}
+	// Check if the transferred value for humidity is within the valid range
+	if H < 0 || H > 100 {
+		return 0, errors.New("Humidity must be between (0 - 100%)")
+	}
+
+	num := 6.112 * math.Exp((17.67*T)/(T+243.5)) * H * 2.1674
+	denom := 273.15 + T
+	result := (num / denom)
+
+	// return the answer rounded to 2 decimal places, we don't need excessive precision
+	return math.Round(result*100) / 100, nil
 }
 
 // From https://github.com/de-wax/go-pkg/blob/a5a606b51a6fa86dc0b561d4d019b3d7fc1e479b/dewpoint/dewpoint.go
