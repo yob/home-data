@@ -15,7 +15,6 @@ import (
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
 	"github.com/yob/home-data/adapters/ruuvi"
-	"github.com/yob/home-data/adapters/stackdriver"
 	"github.com/yob/home-data/adapters/unifi"
 	pub "github.com/yob/home-data/pubsub"
 )
@@ -49,59 +48,6 @@ func main() {
 	// Give the core functions time to setup before we start registering adapters.
 	// TODO: replace this with proper signaling when all core functions are ready.
 	time.Sleep(2 * time.Second)
-
-	// send data to stack driver every minute
-	go func() {
-		config := stackdriver.Config{
-			GoogleProjectID: "our-house-data",
-			StateMap: map[string]string{
-				"daikin.kitchen.temp_inside_celcius":  "daikin.kitchen.inside_temp",
-				"daikin.kitchen.temp_outside_celcius": "daikin.kitchen.outside_temp",
-				"daikin.kitchen.power":                "daikin.kitchen.power",
-				"daikin.kitchen.watt_hours_today":     "daikin.kitchen.power_watt_hours",
-				"daikin.lounge.temp_inside_celcius":   "daikin.lounge.inside_temp",
-				"daikin.lounge.temp_outside_celcius":  "daikin.lounge.outside_temp",
-				"daikin.lounge.power":                 "daikin.lounge.power",
-				"daikin.lounge.watt_hours_today":      "daikin.lounge.power_watt_hours",
-				"daikin.study.temp_inside_celcius":    "daikin.study.inside_temp",
-				"daikin.study.temp_outside_celcius":   "daikin.study.outside_temp",
-				"daikin.study.power":                  "daikin.study.power",
-				"daikin.study.watt_hours_today":       "daikin.study.power_watt_hours",
-
-				"fronius.inverter.grid_draw_watts":       "grid_draw_watts",
-				"fronius.inverter.power_watts":           "power_watts",
-				"fronius.inverter.generation_watts":      "generation_watts",
-				"fronius.inverter.energy_day_watt_hours": "energy_day_watt_hours",
-				"fronius.inverter.grid_voltage":          "grid_voltage",
-
-				"ruuvi.study.temp_celcius": "ruuvi.study.temp",
-				"ruuvi.study.humidity":     "ruuvi.study.humidity",
-				"ruuvi.study.pressure":     "ruuvi.study.pressure",
-
-				"ruuvi.bed1.temp_celcius": "ruuvi.bed1.temp",
-				"ruuvi.bed1.humidity":     "ruuvi.bed1.humidity",
-				"ruuvi.bed1.pressure":     "ruuvi.bed1.pressure",
-
-				"ruuvi.bed2.temp_celcius": "ruuvi.bed2.temp",
-				"ruuvi.bed2.humidity":     "ruuvi.bed2.humidity",
-				"ruuvi.bed2.pressure":     "ruuvi.bed2.pressure",
-
-				"ruuvi.lounge.temp_celcius": "ruuvi.lounge.temp",
-				"ruuvi.lounge.humidity":     "ruuvi.lounge.humidity",
-				"ruuvi.lounge.pressure":     "ruuvi.lounge.pressure",
-
-				"ruuvi.kitchen.temp_celcius": "ruuvi.kitchen.temp",
-				"ruuvi.kitchen.humidity":     "ruuvi.kitchen.humidity",
-				"ruuvi.kitchen.pressure":     "ruuvi.kitchen.pressure",
-
-				"ruuvi.outside.temp_celcius": "ruuvi.outside.temp",
-				"ruuvi.outside.humidity":     "ruuvi.outside.humidity",
-				"ruuvi.outside.pressure":     "ruuvi.outside.pressure",
-			},
-		}
-		logger := logging.NewLogger(pubsub)
-		stackdriver.Init(pubsub, logger, state.ReadOnly(), config)
-	}()
 
 	// send data to datadog every minute
 	go func() {

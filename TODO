@@ -13,7 +13,6 @@
 * If the ruuvi gateway ever becomes available, consider switching to that
   * if it supports polling via a local API
   * might be a lot less moving parts compared to the bluewalker/jsontohttp shenanigans i have going on
-* drop stackdriver, go with datadog
 * integrate physical buttons to actions. Maybe via the hub, which can be programmed to send HTTP
   requests to this app
   * https://flic.io/flic-hub-sdk
