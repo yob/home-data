@@ -38,11 +38,26 @@ func (file *ConfigFile) Section(name string) (*ConfigSection, error) {
 
 func (file *ConfigFile) AdapterSections() []*ConfigSection {
 	sections := make([]*ConfigSection, 0)
-	q, _ := query.Compile("$..[adapter]")
-	// TODO return empty slice on error
-	results := q.Execute(file.tree)
-	for ii, item := range results.Values() {
-		fmt.Printf("Query result %d: %v\n", ii, item)
+	query, err := query.Compile("$..[?(adapterOnly)]")
+	if err != nil {
+		// TODO do something better than just printing out
+		fmt.Printf("err: %v", err)
+		return sections
+	}
+
+	query.SetFilter("adapterOnly", func(node interface{}) bool {
+		if tree, ok := node.(*toml.Tree); ok {
+			return tree.Has("adapter")
+		}
+		return false
+	})
+
+	results := query.Execute(file.tree)
+	for _, item := range results.Values() {
+		itemTree, ok := item.(*toml.Tree)
+		if ok {
+			sections = append(sections, &ConfigSection{tree: itemTree})
+		}
 	}
 	return sections
 }
@@ -91,4 +106,8 @@ func (section *ConfigSection) GetInt64(key string) (int64, error) {
 		return 0, fmt.Errorf("key '%s' is not an int64", key)
 	}
 	return intValue, nil
+}
+
+func (section *ConfigSection) String() string {
+	return section.tree.String()
 }
