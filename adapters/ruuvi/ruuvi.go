@@ -7,17 +7,20 @@ import (
 	"strconv"
 
 	"github.com/tidwall/gjson"
+	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-type Config struct {
-	AddressMap map[string]string
-}
-
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config *conf.ConfigSection) {
 	publish := bus.PublishChannel()
+
+	addressMap, err := config.GetStringMap("names")
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("ruuvi: names map not found in config - %v", err))
+		return
+	}
 
 	publish <- pubsub.PubsubEvent{
 		Topic: "http:register-path",
@@ -33,7 +36,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 		}
 		reqUUID := event.Key
 
-		err := handleRequest(bus, logger, config.AddressMap, event.HttpRequest.Body)
+		err := handleRequest(bus, logger, addressMap, event.HttpRequest.Body)
 		if err != nil {
 			logger.Error(fmt.Sprintf("ruuvi: error handling request (%v)", err))
 

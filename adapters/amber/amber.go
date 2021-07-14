@@ -7,23 +7,22 @@ import (
 	"time"
 
 	amberClient "github.com/yob/home-data/amber"
+	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
-type Config struct {
-	Token string
-}
-
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config *conf.ConfigSection) {
 	publish := bus.PublishChannel()
-	if config.Token == "" {
-		logger.Fatal("amber: API key not found")
+
+	apiToken, err := config.GetString("api_key")
+	if err != nil {
+		logger.Fatal("amber: api_key not found in config")
 		return
 	}
 
-	client := amberClient.NewClient(config.Token)
+	client := amberClient.NewClient(apiToken)
 
 	ctx := context.Background()
 	sites, err := client.GetSites(ctx)

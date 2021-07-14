@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
@@ -15,39 +16,45 @@ var (
 	unifiApiVersion = 5
 )
 
-type Config struct {
-	Address   string
-	UnifiUser string
-	UnifiPass string
-	UnifiPort string
-	UnifiSite string
-	IpMap     map[string]string
+type configData struct {
+	address   string
+	unifiUser string
+	unifiPass string
+	unifiPort string
+	unifiSite string
+	ipMap     map[string]string
 }
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, configSection *conf.ConfigSection) {
 	publish := bus.PublishChannel()
 
-	u, err := unifi.Login(config.UnifiUser, config.UnifiPass, config.Address, config.UnifiPort, config.UnifiSite, unifiApiVersion)
+	config, err := newConfigFromSection(configSection)
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("Unifi login returned error: %v", err))
+		logger.Fatal(fmt.Sprintf("unifi: %v", err))
+		return
+	}
+
+	u, err := unifi.Login(config.unifiUser, config.unifiPass, config.address, config.unifiPort, config.unifiSite, unifiApiVersion)
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("unifi: login returned error: %v", err))
 		return
 	}
 	defer u.Logout()
 
 	for {
-		site, err := u.Site("default")
+		site, err := u.Site(config.unifiSite)
 		if err != nil {
-			logger.Fatal(fmt.Sprintf("%v", err))
+			logger.Fatal(fmt.Sprintf("unifi: %v", err))
 			return
 		}
 		stations, err := u.Sta(site)
 		if err != nil {
-			logger.Fatal(fmt.Sprintf("%v", err))
+			logger.Fatal(fmt.Sprintf("unifi: %v", err))
 			return
 		}
 
 		for _, s := range stations {
-			if stationName, ok := config.IpMap[s.IP]; ok {
+			if stationName, ok := config.ipMap[s.IP]; ok {
 				lastSeen := time.Unix(s.LastSeen, 0).UTC()
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",
@@ -58,4 +65,45 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 
 		time.Sleep(20 * time.Second)
 	}
+}
+
+func newConfigFromSection(configSection *conf.ConfigSection) (configData, error) {
+	address, err := configSection.GetString("address")
+	if err != nil {
+		return configData{}, fmt.Errorf("address not found in config")
+	}
+
+	user, err := configSection.GetString("user")
+	if err != nil {
+		return configData{}, fmt.Errorf("user not found in config")
+	}
+
+	pass, err := configSection.GetString("pass")
+	if err != nil {
+		return configData{}, fmt.Errorf("pass not found in config")
+	}
+
+	port, err := configSection.GetString("port")
+	if err != nil {
+		return configData{}, fmt.Errorf("port not found in config")
+	}
+
+	site, err := configSection.GetString("site")
+	if err != nil {
+		return configData{}, fmt.Errorf("site not found in config")
+	}
+
+	names, err := configSection.GetStringMap("names")
+	if err != nil {
+		return configData{}, fmt.Errorf("names not found in config")
+	}
+
+	return configData{
+		address:   address,
+		unifiUser: user,
+		unifiPass: pass,
+		unifiPort: port,
+		unifiSite: site,
+		ipMap:     names,
+	}, nil
 }

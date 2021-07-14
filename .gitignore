@@ -1,3 +1,4 @@
 jsontohttp/jsontohttp
 home-data
 build-arm64/*
+config.toml

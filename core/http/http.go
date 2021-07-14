@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/pubsub"
 )
 
@@ -23,7 +24,20 @@ type httpServer struct {
 	pathsMutex sync.RWMutex
 }
 
-func Init(bus *pubsub.Pubsub, port int) {
+func Init(bus *pubsub.Pubsub, config *conf.ConfigSection) {
+	publish := bus.PublishChannel()
+
+	port, err := config.GetInt64("http_port")
+	if err != nil {
+		debugLog(publish, "http: error reading http_port from config, defaulting to 8080")
+		port = 8080
+	}
+
+	if port > 65536 {
+		fatalLog(publish, fmt.Sprintf("http: port must be < 65536 (value: %d)", port))
+		return
+	}
+
 	server := httpServer{
 		bus:   bus,
 		paths: []string{},
@@ -36,9 +50,8 @@ func Init(bus *pubsub.Pubsub, port int) {
 
 	http.HandleFunc("/", server.ServeHTTP)
 
-	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
+	err = http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
 	if err != nil {
-		publish := server.bus.PublishChannel()
 		fatalLog(publish, fmt.Sprintf("http: unable to start http server (%v)", err))
 	}
 }

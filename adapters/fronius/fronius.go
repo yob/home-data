@@ -9,19 +9,23 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
-type Config struct {
-	Address string
-}
-
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config Config) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config *conf.ConfigSection) {
 	publish := bus.PublishChannel()
-	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", config.Address)
-	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", config.Address)
+
+	address, err := config.GetString("address")
+	if err != nil {
+		logger.Fatal("fronius: address not found in config")
+		return
+	}
+
+	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
+	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
 
 	for {
 		time.Sleep(20 * time.Second)

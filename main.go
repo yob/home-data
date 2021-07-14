@@ -1,9 +1,11 @@
 package main
 
 import (
-	"os"
+	"fmt"
+	"log"
 	"time"
 
+	"github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
@@ -23,9 +25,59 @@ func main() {
 	pubsub := pub.NewPubsub()
 	state := memorystate.New()
 
+	configFile, err := config.NewConfigFromFile("config.toml")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading config file: %v", err))
+	}
+
+	coreConfig, err := configFile.Section("core")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading core section from config file: %v", err))
+	}
+
+	amberConfig, err := configFile.Section("amber")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading amber section from config file: %v", err))
+	}
+
+	froniusConfig, err := configFile.Section("fronius")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading fronius section from config file: %v", err))
+	}
+
+	datadogConfig, err := configFile.Section("datadog")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading datadog section from config file: %v", err))
+	}
+
+	daikinLoungeConfig, err := configFile.Section("ac-lounge")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading ac-lounge section from config file: %v", err))
+	}
+
+	daikinStudyConfig, err := configFile.Section("ac-study")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading ac-study section from config file: %v", err))
+	}
+
+	daikinKitchenConfig, err := configFile.Section("ac-kitchen")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading ac-kitchen section from config file: %v", err))
+	}
+
+	ruuviConfig, err := configFile.Section("ruuvi")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading ruuvi section from config file: %v", err))
+	}
+
+	unifiConfig, err := configFile.Section("unifi")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error reading unifi section from config file: %v", err))
+	}
+
 	// webserver, as an alternative way to injest events
 	go func() {
-		http.Init(pubsub, 8080)
+		http.Init(pubsub, coreConfig)
 	}()
 
 	// all log messages printed via a single goroutine
@@ -51,151 +103,46 @@ func main() {
 
 	// send data to datadog every minute
 	go func() {
-		config := datadog.Config{
-			InterestingKeys: []string{
-				"daikin.kitchen.temp_inside_celcius",
-				"daikin.kitchen.temp_outside_celcius",
-				"daikin.kitchen.power",
-				"daikin.kitchen.watt_hours_today",
-				"daikin.lounge.temp_inside_celcius",
-				"daikin.lounge.temp_outside_celcius",
-				"daikin.lounge.power",
-				"daikin.lounge.watt_hours_today",
-				"daikin.study.temp_inside_celcius",
-				"daikin.study.temp_outside_celcius",
-				"daikin.study.power",
-				"daikin.study.watt_hours_today",
-
-				"fronius.inverter.grid_draw_watts",
-				"fronius.inverter.power_watts",
-				"fronius.inverter.generation_watts",
-				"fronius.inverter.energy_day_watt_hours",
-				"fronius.inverter.grid_voltage",
-
-				"ruuvi.study.temp_celcius",
-				"ruuvi.study.humidity",
-				"ruuvi.study.pressure",
-				"ruuvi.study.dewpoint_celcius",
-				"ruuvi.study.absolute_humidity_g_per_m3",
-
-				"ruuvi.bed1.temp_celcius",
-				"ruuvi.bed1.humidity",
-				"ruuvi.bed1.pressure",
-				"ruuvi.bed1.dewpoint_celcius",
-				"ruuvi.bed1.absolute_humidity_g_per_m3",
-
-				"ruuvi.bed2.temp_celcius",
-				"ruuvi.bed2.humidity",
-				"ruuvi.bed2.pressure",
-				"ruuvi.bed2.dewpoint_celcius",
-				"ruuvi.bed2.absolute_humidity_g_per_m3",
-
-				"ruuvi.lounge.temp_celcius",
-				"ruuvi.lounge.humidity",
-				"ruuvi.lounge.pressure",
-				"ruuvi.lounge.dewpoint_celcius",
-				"ruuvi.lounge.absolute_humidity_g_per_m3",
-
-				"ruuvi.kitchen.temp_celcius",
-				"ruuvi.kitchen.humidity",
-				"ruuvi.kitchen.pressure",
-				"ruuvi.kitchen.dewpoint_celcius",
-				"ruuvi.kitchen.absolute_humidity_g_per_m3",
-
-				"ruuvi.outside.temp_celcius",
-				"ruuvi.outside.humidity",
-				"ruuvi.outside.pressure",
-				"ruuvi.outside.dewpoint_celcius",
-				"ruuvi.outside.absolute_humidity_g_per_m3",
-
-				"amber.general.cents_per_kwh",
-				"amber.general.spot_cents_per_kwh",
-				"amber.general.renewables",
-				"amber.feedin.cents_per_kwh",
-			},
-		}
 		logger := logging.NewLogger(pubsub)
-		datadog.Init(pubsub, logger, state.ReadOnly(), config)
+		datadog.Init(pubsub, logger, state.ReadOnly(), datadogConfig)
 	}()
 
 	// daikin plugin, one per unit
 	go func() {
-		config := daikin.Config{
-			Address: "10.1.1.110",
-			Name:    "kitchen",
-		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, state.ReadOnly(), config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), daikinKitchenConfig)
 	}()
 	go func() {
-		config := daikin.Config{
-			Address: "10.1.1.112",
-			Name:    "study",
-			Token:   os.Getenv("DAIKIN_STUDY_TOKEN"),
-		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, state.ReadOnly(), config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), daikinStudyConfig)
 	}()
 	go func() {
-		config := daikin.Config{
-			Address: "10.1.1.111",
-			Name:    "lounge",
-			Token:   os.Getenv("DAIKIN_LOUNGE_TOKEN"),
-		}
 		logger := logging.NewLogger(pubsub)
-		daikin.Init(pubsub, logger, state.ReadOnly(), config)
+		daikin.Init(pubsub, logger, state.ReadOnly(), daikinLoungeConfig)
 	}()
 
 	// amber plugin
 	go func() {
-		config := amber.Config{
-			Token: os.Getenv("AMBER_API_KEY"),
-		}
 		logger := logging.NewLogger(pubsub)
-		amber.Init(pubsub, logger, state.ReadOnly(), config)
+		amber.Init(pubsub, logger, state.ReadOnly(), amberConfig)
 	}()
 
 	// fronius plugin, one per inverter
 	go func() {
-		config := fronius.Config{
-			Address: "10.1.1.69",
-		}
 		logger := logging.NewLogger(pubsub)
-		fronius.Init(pubsub, logger, state.ReadOnly(), config)
+		fronius.Init(pubsub, logger, state.ReadOnly(), froniusConfig)
 	}()
 
 	// ruuvi plugin
 	go func() {
-		config := ruuvi.Config{
-			AddressMap: map[string]string{
-				"cc:64:a6:ed:f6:aa": "study",
-				"f2:b0:81:51:8a:e0": "bed1",
-				"fb:dd:03:59:e8:26": "bed2",
-				"ef:81:7d:23:3c:74": "lounge",
-				"c2:69:9e:be:25:aa": "kitchen",
-				"fd:54:a9:f0:a8:a5": "outside",
-			},
-		}
-
 		logger := logging.NewLogger(pubsub)
-		ruuvi.Init(pubsub, logger, state.ReadOnly(), config)
+		ruuvi.Init(pubsub, logger, state.ReadOnly(), ruuviConfig)
 	}()
 
 	// unifi plugin, one per network to detect presense of specific people
 	go func() {
-		config := unifi.Config{
-			Address:   "10.1.1.2",
-			UnifiUser: os.Getenv("UNIFI_USER"),
-			UnifiPass: os.Getenv("UNIFI_PASS"),
-			UnifiPort: os.Getenv("UNIFI_PORT"),
-			UnifiSite: os.Getenv("UNIFI_SITE"),
-			IpMap: map[string]string{
-				"10.1.1.123": "james",
-				"10.1.1.134": "andrea",
-			},
-		}
 		logger := logging.NewLogger(pubsub)
-		unifi.Init(pubsub, logger, state.ReadOnly(), config)
+		unifi.Init(pubsub, logger, state.ReadOnly(), unifiConfig)
 	}()
 
 	// loop forever, shuffling events between goroutines
