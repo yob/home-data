@@ -33,9 +33,14 @@ func main() {
 	pubsub := pub.NewPubsub()
 	state := memorystate.New()
 
-	configFile, err := config.NewConfigFromFile("config.toml")
+	configPath, err := config.FindConfigPath()
 	if err != nil {
-		log.Fatal(fmt.Sprintf("Error reading config file: %v", err))
+		log.Fatal(err)
+	}
+
+	configFile, err := config.NewConfigFromFile(configPath)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("error reading config file: %v", err))
 	}
 
 	coreConfig, err := configFile.Section("core")

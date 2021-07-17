@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/pelletier/go-toml"
 	"github.com/pelletier/go-toml/query"
@@ -15,8 +17,32 @@ type ConfigSection struct {
 	tree *toml.Tree
 }
 
+func FindConfigPath() (string, error) {
+	binPath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	binDir, err := filepath.Abs(filepath.Dir(binPath))
+	if err != nil {
+		return "", err
+	}
+
+	nextToBin := binDir + "/config.toml"
+	if _, err := os.Stat(nextToBin); err == nil {
+		return nextToBin, nil
+	}
+
+	etcConfig := "/etc/home-data/config.toml"
+	if _, err := os.Stat(etcConfig); err == nil {
+		return etcConfig, nil
+	}
+
+	return "", fmt.Errorf("Unable to find config file. Checked '%s' and '%s'", nextToBin, etcConfig)
+}
+
 func NewConfigFromFile(path string) (*ConfigFile, error) {
-	tree, err := toml.LoadFile("config.toml")
+	tree, err := toml.LoadFile(path)
 	if err != nil {
 		return nil, err
 	}
