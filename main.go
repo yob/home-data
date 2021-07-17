@@ -71,11 +71,14 @@ func main() {
 	for _, adapterSection := range configFile.AdapterSections() {
 		adapterName, _ := adapterSection.GetString("adapter")
 		localSection := adapterSection
-		go func() {
-			logger := logging.NewLogger(pubsub)
-			initFunc := adapterFuncs[adapterName]
-			initFunc(pubsub, logger, state.ReadOnly(), localSection)
-		}()
+		logger := logging.NewLogger(pubsub)
+		if initFunc, ok := adapterFuncs[adapterName]; ok {
+			go func() {
+				initFunc(pubsub, logger, state.ReadOnly(), localSection)
+			}()
+		} else {
+			logger.Fatal(fmt.Sprintf("adapter '%s' not recognised", adapterName))
+		}
 	}
 
 	// loop forever, shuffling events between goroutines

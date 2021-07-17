@@ -1,6 +1,5 @@
 * improve config file support
   * search for the file in multiple locations. At least the current working dir, and an etc one
-  * check that the adapter values in the config file are legit
 * executing actions/automations that change the real world
   * splits on to cool when outside temp is hot and power is cheap?
   * heat hot water only when solar is generating or power is > 10c/kWh?
