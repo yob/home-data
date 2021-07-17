@@ -128,6 +128,7 @@ func changeState(bus *pubsub.Pubsub, logger *logging.Logger, config configData) 
 				logger.Error(fmt.Sprintf("daikin (%s): error setting control: %v", config.name, err))
 				continue
 			}
+			logger.Debug(fmt.Sprintf("daikin (%s): power changed to off", config.name))
 		} else if event.Key == "power" && event.Value == "on" {
 			if err := dev.GetControlInfo(); err != nil {
 				logger.Error(fmt.Sprintf("daikin (%s): %v", config.name, err))
@@ -139,6 +140,7 @@ func changeState(bus *pubsub.Pubsub, logger *logging.Logger, config configData) 
 				logger.Error(fmt.Sprintf("daikin (%s): error setting control: %v", config.name, err))
 				continue
 			}
+			logger.Debug(fmt.Sprintf("daikin (%s): power changed to on", config.name))
 		} else {
 			logger.Error(fmt.Sprintf("daikin (%s): unrecognised event: %v", config.name, event))
 		}
