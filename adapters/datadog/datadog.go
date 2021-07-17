@@ -3,7 +3,6 @@ package datadog
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
@@ -42,11 +41,8 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 
 func processEvent(logger *logging.Logger, apiKey string, appKey string, state memorystate.StateReader, interestingKeys []string) {
 	for _, stateKey := range interestingKeys {
-		if value, ok := state.Read(stateKey); ok {
-			value64, err := strconv.ParseFloat(value, 8)
-			if err == nil {
-				ddSubmitGauge(logger, apiKey, appKey, stateKey, value64)
-			}
+		if value, ok := state.ReadFloat64(stateKey); ok {
+			ddSubmitGauge(logger, apiKey, appKey, stateKey, value)
 		} else {
 			logger.Debug(fmt.Sprintf("datadog: failed to read %s from state", stateKey))
 		}
