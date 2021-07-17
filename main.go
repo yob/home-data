@@ -57,7 +57,7 @@ func main() {
 		logging.Init(pubsub)
 	}()
 
-	// trigger events at reliable intervals for anyone can listen to if they want to run code
+	// trigger events at reliable intervals so anyone can listen to if they want to run code
 	// regularly
 	go func() {
 		timers.Init(pubsub)
