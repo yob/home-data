@@ -16,6 +16,7 @@ import (
 	"github.com/yob/home-data/adapters/daikin"
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
+	"github.com/yob/home-data/adapters/rules"
 	"github.com/yob/home-data/adapters/ruuvi"
 	"github.com/yob/home-data/adapters/unifi"
 	pub "github.com/yob/home-data/pubsub"
@@ -27,6 +28,7 @@ func main() {
 		"daikin":  daikin.Init,
 		"datadog": datadog.Init,
 		"fronius": fronius.Init,
+		"rules":   rules.Init,
 		"ruuvi":   ruuvi.Init,
 		"unifi":   unifi.Init,
 	}
@@ -73,6 +75,7 @@ func main() {
 	// TODO: replace this with proper signaling when all core functions are ready.
 	time.Sleep(2 * time.Second)
 
+	// Now that core is all ready, load any adapters listed in the config file.
 	for _, adapterSection := range configFile.AdapterSections() {
 		adapterName, _ := adapterSection.GetString("adapter")
 		localSection := adapterSection
