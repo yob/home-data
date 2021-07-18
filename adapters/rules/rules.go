@@ -19,6 +19,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 		wg.Done()
 	}()
 
+	wg.Add(1)
+	go func() {
+		acOffOnPriceSpikes(bus, logger, state)
+		wg.Done()
+	}()
+
 	wg.Wait()
 }
 
@@ -43,12 +49,49 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 								Data:  pubsub.NewKeyValueEvent("power", "on"),
 							}
 
+							// TODO send me an email
+
 							publish <- pubsub.PubsubEvent{
 								Topic: "state:update",
 								Data:  pubsub.NewKeyValueEvent("kitchenHeatingOnColdMornings_last_at", time.Now().UTC().Format(time.RFC3339)),
 							}
 						}
 					}
+				}
+			}
+		}
+	}
+}
+
+func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader) {
+	publish := bus.PublishChannel()
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("executing rule acOffOnPriceSpikes")
+		if amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh"); ok {
+			if amberGeneralCentsPerKwh > 150 {
+				publish <- pubsub.PubsubEvent{
+					Topic: "daikin.kitchen.control",
+					Data:  pubsub.NewKeyValueEvent("power", "off"),
+				}
+
+				publish <- pubsub.PubsubEvent{
+					Topic: "daikin.study.control",
+					Data:  pubsub.NewKeyValueEvent("power", "off"),
+				}
+
+				publish <- pubsub.PubsubEvent{
+					Topic: "daikin.lounge.control",
+					Data:  pubsub.NewKeyValueEvent("power", "off"),
+				}
+
+				// TODO send me an email
+
+				publish <- pubsub.PubsubEvent{
+					Topic: "state:update",
+					Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
 				}
 			}
 		}
