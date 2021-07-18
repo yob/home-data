@@ -67,5 +67,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, config *conf.ConfigSection
 			logger.Error(fmt.Sprintf("email: failed to send (%v)", err))
 			continue
 		}
+
+		logger.Debug(fmt.Sprintf("email: sent email (%s) to %s", event.Email.Subject, toAddress))
 	}
 }
