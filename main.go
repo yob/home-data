@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/email"
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
@@ -63,6 +64,12 @@ func main() {
 	// regularly
 	go func() {
 		timers.Init(pubsub)
+	}()
+
+	// send emails
+	go func() {
+		logger := logging.NewLogger(pubsub)
+		email.Init(pubsub, logger, coreConfig)
 	}()
 
 	// update the shared state when attributes change

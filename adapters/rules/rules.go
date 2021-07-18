@@ -49,7 +49,10 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 								Data:  pubsub.NewKeyValueEvent("power", "on"),
 							}
 
-							// TODO send me an email
+							publish <- pubsub.PubsubEvent{
+								Topic: "email:send",
+								Data:  pubsub.NewEmailEvent("[home-data] Cold morning - kitchen AC turned on", "I did a thing"),
+							}
 
 							publish <- pubsub.PubsubEvent{
 								Topic: "state:update",
@@ -87,7 +90,10 @@ func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state memory
 					Data:  pubsub.NewKeyValueEvent("power", "off"),
 				}
 
-				// TODO send me an email
+				publish <- pubsub.PubsubEvent{
+					Topic: "email:send",
+					Data:  pubsub.NewEmailEvent("[home-data] Price spike! AC turned off", "I did a thing"),
+				}
 
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",

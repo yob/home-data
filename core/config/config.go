@@ -125,6 +125,18 @@ func (section *ConfigSection) GetStringSlice(key string) ([]string, error) {
 	return strValue, nil
 }
 
+func (section *ConfigSection) GetInt(key string) (int, error) {
+	value64, err := section.GetInt64(key)
+	if err != nil {
+		return 0, err
+	}
+	value := int(value64)
+	if int64(value) != value64 {
+		return 0, fmt.Errorf("Value %d does not fit into a regular int", value64)
+	}
+	return value, nil
+}
+
 func (section *ConfigSection) GetInt64(key string) (int64, error) {
 	value := section.tree.Get(key)
 	intValue, ok := value.(int64)

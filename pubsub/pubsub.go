@@ -41,12 +41,19 @@ type HttpResponse struct {
 	Body   string
 }
 
+type Email struct {
+	To      string
+	Subject string
+	Body    string
+}
+
 type EventData struct {
 	Type         string
 	Key          string
 	Value        string
 	HttpRequest  HttpRequest
 	HttpResponse HttpResponse
+	Email        Email
 }
 
 func NewValueEvent(value string) EventData {
@@ -83,6 +90,16 @@ func NewHttpResponseEvent(status int, body string, uuid string) EventData {
 		HttpResponse: HttpResponse{
 			Status: status,
 			Body:   body,
+		},
+	}
+}
+
+func NewEmailEvent(subject string, body string) EventData {
+	return EventData{
+		Type: "email",
+		Email: Email{
+			Subject: subject,
+			Body:    body,
 		},
 	}
 }
