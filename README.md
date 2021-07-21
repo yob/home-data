@@ -1,4 +1,4 @@
-Collecting various data from home and sending it to stackdriver.
+Collecting various data from home and sending it to datadog.
 
 I'm not totally convinced by home automation - I'm nervous about the time
 investment required to build a rube goldberg machine that turns on my hall
@@ -6,7 +6,7 @@ light when I walk in the door.
 
 However, *monitoring* my house is interesting.
 
-So far the following devices are monitored and charted in stack driver:
+So far the following devices are monitored and charted in datadog:
 
 * 4x indoor ruuvi tags, for temp/humidity 
 * 1x outdoor ruuvi tags, for temp/humidity 
@@ -19,7 +19,7 @@ different conditions. So far I haven't explored that yet.
 
 Here's part of the dashboard I get:
 
-![stackdriver dashboard](/images/dashboard.png)
+![datadog dashboard](/images/dashboard.png)
 
 ## Why not Home Assistant?
 
@@ -27,7 +27,7 @@ I'm a software guy, and this was a good excuse to explore golang. In particular,
 I wanted to try the actor pattern using only channels for cross-goroutine
 communication.
 
-The result is ~1000 lines of go (so far) that does just what I need. I have to
+The result is ~1500 lines of go (so far) that does just what I need. I have to
 maintain it and don't get all the home Assistant bells and whistles, but I'm OK
 with that for now. I'm learning a lot along the way.
 
