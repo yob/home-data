@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -34,33 +35,36 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 	defer sub.Close()
 
 	for _ = range sub.Ch {
-		logger.Debug("executing rule kitchenHeatingOnColdMornings")
+		logger.Debug("rules: executing kitchenHeatingOnColdMornings")
 		// TODO only mon-fri
-		if time.Now().Hour() == 6 {
-			lastAt, ok := state.ReadTime("kitchenHeatingOnColdMornings_last_at")
-			if !ok || time.Since(lastAt) > 12*time.Hour {
-				jamesLastSeenAt, jamesOk := state.ReadTime("unifi.presence.last_seen.james")
-				andreaLastSeenAt, andreaOk := state.ReadTime("unifi.presence.last_seen.andrea")
-				if (jamesOk && time.Since(jamesLastSeenAt) < 1*time.Hour) || (andreaOk && time.Since(andreaLastSeenAt) < 1*time.Hour) {
-					if kitchenCelcius, ok := state.ReadFloat64("ruuvi.kitchen.temp_celcius"); ok {
-						if kitchenCelcius <= 13 {
-							publish <- pubsub.PubsubEvent{
-								Topic: "daikin.kitchen.control",
-								Data:  pubsub.NewKeyValueEvent("power", "on"),
-							}
+		condOne := time.Now().Hour() == 6
 
-							publish <- pubsub.PubsubEvent{
-								Topic: "email:send",
-								Data:  pubsub.NewEmailEvent("[home-data] Cold morning - kitchen AC turned on", "I did a thing"),
-							}
+		lastAt, ok := state.ReadTime("kitchenHeatingOnColdMornings_last_at")
+		condTwo := !ok || time.Since(lastAt) > 12*time.Hour
 
-							publish <- pubsub.PubsubEvent{
-								Topic: "state:update",
-								Data:  pubsub.NewKeyValueEvent("kitchenHeatingOnColdMornings_last_at", time.Now().UTC().Format(time.RFC3339)),
-							}
-						}
-					}
-				}
+		jamesLastSeenAt, jamesOk := state.ReadTime("unifi.presence.last_seen.james")
+		andreaLastSeenAt, andreaOk := state.ReadTime("unifi.presence.last_seen.andrea")
+		condThree := (jamesOk && time.Since(jamesLastSeenAt) < 1*time.Hour) || (andreaOk && time.Since(andreaLastSeenAt) < 1*time.Hour)
+
+		kitchenCelcius, ok := state.ReadFloat64("ruuvi.kitchen.temp_celcius")
+		condFour := ok && kitchenCelcius <= 13
+
+		logger.Debug(fmt.Sprintf("rules: evaluating kitchenHeatingOnColdMornings - condOne: %t, condTwo: %t, condThree: %t, condFour: %t", condOne, condTwo, condThree, condFour))
+
+		if condOne && condTwo && condThree && condFour {
+			publish <- pubsub.PubsubEvent{
+				Topic: "daikin.kitchen.control",
+				Data:  pubsub.NewKeyValueEvent("power", "on"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "email:send",
+				Data:  pubsub.NewEmailEvent("[home-data] Cold morning - kitchen AC turned on", "I did a thing"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent("kitchenHeatingOnColdMornings_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
 		}
 	}
@@ -72,33 +76,36 @@ func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state memory
 	defer sub.Close()
 
 	for _ = range sub.Ch {
-		logger.Debug("executing rule acOffOnPriceSpikes")
-		if amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh"); ok {
-			if amberGeneralCentsPerKwh > 150 {
-				publish <- pubsub.PubsubEvent{
-					Topic: "daikin.kitchen.control",
-					Data:  pubsub.NewKeyValueEvent("power", "off"),
-				}
+		logger.Debug("rules: executing acOffOnPriceSpikes")
+		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
+		condOne := ok && amberGeneralCentsPerKwh > 150
 
-				publish <- pubsub.PubsubEvent{
-					Topic: "daikin.study.control",
-					Data:  pubsub.NewKeyValueEvent("power", "off"),
-				}
+		logger.Debug(fmt.Sprintf("rules: evaluating acOffOnPriceSpikes - condOne: %t", condOne))
 
-				publish <- pubsub.PubsubEvent{
-					Topic: "daikin.lounge.control",
-					Data:  pubsub.NewKeyValueEvent("power", "off"),
-				}
+		if condOne {
+			publish <- pubsub.PubsubEvent{
+				Topic: "daikin.kitchen.control",
+				Data:  pubsub.NewKeyValueEvent("power", "off"),
+			}
 
-				publish <- pubsub.PubsubEvent{
-					Topic: "email:send",
-					Data:  pubsub.NewEmailEvent("[home-data] Price spike! AC turned off", "I did a thing"),
-				}
+			publish <- pubsub.PubsubEvent{
+				Topic: "daikin.study.control",
+				Data:  pubsub.NewKeyValueEvent("power", "off"),
+			}
 
-				publish <- pubsub.PubsubEvent{
-					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
-				}
+			publish <- pubsub.PubsubEvent{
+				Topic: "daikin.lounge.control",
+				Data:  pubsub.NewKeyValueEvent("power", "off"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "email:send",
+				Data:  pubsub.NewEmailEvent("[home-data] Price spike! AC turned off", "I did a thing"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
 		}
 	}
