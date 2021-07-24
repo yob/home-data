@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	amberClient "github.com/yob/home-data/amber"
+	amberClient "github.com/yob/go-amber"
 	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"

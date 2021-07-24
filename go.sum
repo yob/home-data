@@ -201,6 +201,8 @@ github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhso
 github.com/urfave/cli v1.22.5 h1:lNq9sAHXK2qfdI8W+GRItjCEkI+2oR4d+MEHy1CKXoU=
 github.com/urfave/cli/v2 v2.3.0 h1:qph92Y649prgesehzOrQjdWyxFOp/QVM+6imKHad91M=
 github.com/urfave/cli/v2 v2.3.0/go.mod h1:LJmUH05zAU44vOAcrfzZQKsZbVcdbOG8rtL3/XcUArI=
+github.com/yob/go-amber v0.0.0-20210724233317-f8859c191f60 h1:Nu9lc07OikLxJCdvLlbsZZClJd9zg9nyzXzTnJlMupY=
+github.com/yob/go-amber v0.0.0-20210724233317-f8859c191f60/go.mod h1:K9iDIzLzh8HkT0yVP310+BbvX/HE6rQJPYyCaNrlPAs=
 github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102 h1:WwvB3Q4saIakZDopz2s4fKtC5B/ipRoCXfuZu67n9dk=
 github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102/go.mod h1:EALOehq8LftWlTXjFkA/d9puGVTcjemyYu7mCW2jfow=
 github.com/yob/go-daikin v0.0.0-20210501022443-1ff7469ffc3c h1:5n3GwPmBKKTpsjpel0eSMKTUunZMh8G22TXRTsqKM6E=
