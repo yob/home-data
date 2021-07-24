@@ -5,6 +5,9 @@
 * proper state, not a sync.Map. Maybe redis? Maybe cockroachdb cloud so I can learn it?
 * proper types on state, not all strings?
 * buy a WebRelay Quad (https://www.controlbyweb.com/webrelay-quad/) and control my hot water
+  * or maybe something with a few inputs for things like water pulse meters
+  * https://www.controlbyweb.com/x401/
+  * https://www.controlbyweb.com/x410/
 * If the ruuvi gateway ever becomes available, consider switching to that
   * if it supports polling via a local API
   * might be a lot less moving parts compared to the bluewalker/jsontohttp shenanigans i have going on
