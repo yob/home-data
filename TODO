@@ -4,6 +4,12 @@
   * turn on ac/heaters when power price is negative and we can be paid to consume?
 * proper state, not a sync.Map. Maybe redis? Maybe cockroachdb cloud so I can learn it?
 * proper types on state, not all strings?
+  * consider some domain specific state functions. Maybe inspired by Home Assistant?
+    * switch
+    * number (gauge?) read only
+      * writeable, for things like AC temp
+    * on/off sensor
+    * entities with multiple switches/numbers/sensors?
 * buy a WebRelay Quad (https://www.controlbyweb.com/webrelay-quad/) and control my hot water
   * or maybe something with a few inputs for things like water pulse meters
   * https://www.controlbyweb.com/x401/
