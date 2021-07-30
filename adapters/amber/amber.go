@@ -8,12 +8,12 @@ import (
 
 	amberClient "github.com/yob/go-amber"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
-	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config *conf.ConfigSection) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
 	publish := bus.PublishChannel()
 
 	apiToken, err := config.GetString("api_key")

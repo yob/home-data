@@ -5,8 +5,8 @@ import (
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
-	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	"github.com/dim13/unifi"
@@ -25,7 +25,7 @@ type configData struct {
 	ipMap     map[string]string
 }
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, configSection *conf.ConfigSection) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, configSection *conf.ConfigSection) {
 	publish := bus.PublishChannel()
 
 	config, err := newConfigFromSection(configSection)

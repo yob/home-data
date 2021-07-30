@@ -6,6 +6,7 @@ import (
 
 	"github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/email"
+	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
@@ -23,7 +24,7 @@ import (
 )
 
 func main() {
-	adapterFuncs := map[string]func(*pub.Pubsub, *logging.Logger, memorystate.StateReader, *config.ConfigSection){
+	adapterFuncs := map[string]func(*pub.Pubsub, *logging.Logger, homestate.StateReader, *config.ConfigSection){
 		"amber":   amber.Init,
 		"daikin":  daikin.Init,
 		"datadog": datadog.Init,

@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/yob/home-data/core/homestate"
 )
 
 type State struct {
@@ -12,12 +14,6 @@ type State struct {
 
 type readOnlyState struct {
 	writeableState *State
-}
-
-type StateReader interface {
-	Read(string) (string, bool)
-	ReadFloat64(string) (float64, bool)
-	ReadTime(string) (time.Time, bool)
 }
 
 func New() *State {
@@ -55,14 +51,15 @@ func (state *State) ReadTime(key string) (time.Time, bool) {
 	return time.Now(), false
 }
 
-func (state *State) ReadOnly() *readOnlyState {
+func (state *State) ReadOnly() homestate.StateReader {
 	return &readOnlyState{
 		writeableState: state,
 	}
 }
 
-func (state *State) Store(key string, value string) {
+func (state *State) Store(key string, value string) error {
 	state.data.Store(key, value)
+	return nil
 }
 
 func (state *readOnlyState) Read(key string) (string, bool) {

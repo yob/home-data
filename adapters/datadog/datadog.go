@@ -6,14 +6,14 @@ import (
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
-	"github.com/yob/home-data/core/memorystate"
 	pubsub "github.com/yob/home-data/pubsub"
 
 	datadog "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, config *conf.ConfigSection) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
 	apiKey, err := config.GetString("api_key")
 	if err != nil {
 		logger.Fatal("datadog: api_key not found in config")
@@ -39,7 +39,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 	}
 }
 
-func processEvent(logger *logging.Logger, apiKey string, appKey string, state memorystate.StateReader, interestingKeys []string) {
+func processEvent(logger *logging.Logger, apiKey string, appKey string, state homestate.StateReader, interestingKeys []string) {
 	for _, stateKey := range interestingKeys {
 		if value, ok := state.ReadFloat64(stateKey); ok {
 			ddSubmitGauge(logger, apiKey, appKey, stateKey, value)

@@ -6,12 +6,12 @@ import (
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
-	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/pubsub"
 )
 
-func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader, configSection *conf.ConfigSection) {
+func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, configSection *conf.ConfigSection) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -29,7 +29,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateRea
 	wg.Wait()
 }
 
-func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader) {
+func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
 	publish := bus.PublishChannel()
 	sub, _ := bus.Subscribe("every:minute")
 	defer sub.Close()
@@ -70,7 +70,7 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 	}
 }
 
-func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state memorystate.StateReader) {
+func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
 	publish := bus.PublishChannel()
 	sub, _ := bus.Subscribe("every:minute")
 	defer sub.Close()
