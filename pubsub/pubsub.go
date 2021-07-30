@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -173,6 +174,24 @@ func (ps *Pubsub) Subscribe(topic string) (*Subscription, error) {
 	}
 	ps.subs[topic] = append(ps.subs[topic], sub)
 	return sub, nil
+}
+
+func (ps *Pubsub) WaitUntilSubscriber(topic string, timeoutInSecs int) error {
+	startedAt := time.Now()
+
+	for {
+		if time.Now().After(startedAt.Add(time.Second * time.Duration(timeoutInSecs))) {
+			return fmt.Errorf("No subscribers on topic %s after %d seconds", topic, timeoutInSecs)
+		}
+		ps.mu.Lock()
+		if len(ps.subs[topic]) > 0 {
+			ps.mu.Unlock()
+			return nil
+		}
+		ps.mu.Unlock()
+
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (ps *Pubsub) PublishChannel() chan PubsubEvent {

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/email"
@@ -50,37 +49,48 @@ func main() {
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Error reading core section from config file: %v", err))
 	}
-	// webserver, as an alternative way to injest events
-	go func() {
-		http.Init(pubsub, coreConfig)
-	}()
 
 	// all log messages printed via a single goroutine
 	go func() {
 		logging.Init(pubsub)
 	}()
-
-	// trigger events at reliable intervals so anyone can listen to if they want to run code
-	// regularly
-	go func() {
-		timers.Init(pubsub)
-	}()
-
-	// send emails
-	go func() {
-		logger := logging.NewLogger(pubsub)
-		email.Init(pubsub, logger, coreConfig)
-	}()
+	err = pubsub.WaitUntilSubscriber("log:new", 5)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error initializing logger: %v", err))
+	}
 
 	// update the shared state when attributes change
 	go func() {
 		logger := logging.NewLogger(pubsub)
 		statebus.Init(pubsub, logger, state)
 	}()
+	err = pubsub.WaitUntilSubscriber("state:update", 5)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error initializing statebus: %v", err))
+	}
 
-	// Give the core functions time to setup before we start registering adapters.
-	// TODO: replace this with proper signaling when all core functions are ready.
-	time.Sleep(2 * time.Second)
+	// send emails
+	go func() {
+		logger := logging.NewLogger(pubsub)
+		email.Init(pubsub, logger, coreConfig)
+	}()
+	// TODO is it a fatal error if email is misconfigured?
+	// TODO should we block until the email subscriber is listening?
+
+	// webserver, as an alternative way to injest events
+	go func() {
+		http.Init(pubsub, coreConfig)
+	}()
+	err = pubsub.WaitUntilSubscriber("http:register-path", 5)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("Error initializing http: %v", err))
+	}
+
+	// trigger events at reliable intervals so anyone can listen to if they want to run code
+	// regularly
+	go func() {
+		timers.Init(pubsub)
+	}()
 
 	// Now that core is all ready, load any adapters listed in the config file.
 	for _, adapterSection := range configFile.AdapterSections() {
