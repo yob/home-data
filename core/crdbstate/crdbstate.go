@@ -3,9 +3,9 @@ package crdbstate
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/lib/pq"
 	"strconv"
 	"time"
-	_ "github.com/lib/pq"
 
 	conf "github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/homestate"
