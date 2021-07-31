@@ -1,0 +1,118 @@
+## pre-warm kitchen on cold mornings
+
+//every minute
+//if current hour is 6 && 
+//   last triggered > 12 hours ago && 
+//   kitchen temp is <= 13 &&
+//   kitchen split is off then
+//      set last triggered to now()
+//      turn on kitchen heater
+//      bonus: turn on ceiling fan
+
+## vent steam from the bathroom
+
+//every minute
+//if bathroom fan is off &&
+//   last triggered on > 5 min ago && 
+//   last triggered off > 5 min ago && 
+//   bathroom humidity is > xx then
+//     set last triggered to now()
+//     turn on bathroom fan
+
+## stop venting steam when not needed any more, retain building envelope
+
+//every minute
+//if bathroom fan is on &&
+//   last triggered on > 5 min ago && 
+//   last triggered off > 5 min ago && 
+//   bathroom humidity is < xx then
+//     set last triggered to now()
+//     turn off bathroom fan
+
+## Slowly ramp up self-consumption if we have spare solar generation
+
+//every minute
+//if last triggered up+down > 2 mins ago &&
+//   hot water relay is off then
+//     turn on hot water relay
+//     set last triggered to now()
+// elsif outside temp > 30 &&
+//   room x temp is > 25 &&
+//   room x AC is off then
+//     turn on room x AC
+//     set last triggered to now()
+// elsif outside temp < 15 &&
+//   room x temp is < 15 &&
+//   room x heater is off then
+//     turn on room x heater
+//     set last triggered to now()
+
+
+## Slowly ramp down self-consumption if we're cosuming more than we generate spare solar generation
+
+//every minute
+//if last triggered up+down > 2 mins ago &&
+//   hot water relay is on then
+//     turn off hot water relay
+
+## Hot water base rule 
+
+It might be desirable to keep hot water out of other rules. We want hot water
+every day, not only when the sun shines or power is cheap.
+
+//if excess solar generation is > 1000W &&
+//   hot water relay is off
+//     turn on hot water relay
+//     set last triggered to now()
+
+//if excess solar generation is <= 0W &&
+//   hot water relay is on
+//     turn off hot water relay
+//     set last triggered to now()
+
+// target_mins_per_day=480 
+//if minutes on today < target_mins_per_day &&
+//   (6pm - now) >= (target_mins_per_day - minutes on today) &&
+//   hot water relay is off
+//     turn on hot water relay
+//     set last triggered to now()
+
+// target_mins_per_day=480 
+//if minutes on today >= target_mins_per_day &&
+//   hot water relay is on &&
+//   amber electric prices > 10c then
+//     turn offf hot water relay
+//     set last triggered to now()
+
+## Hot water bonus heating when electricity is cheap 
+
+//every minute
+//if last triggered on+off > 2 mins ago &&
+//   hot water relay is off &&
+//     amber electric prices < 10c then
+//     turn on hot water relay
+//     set last triggered to now()
+
+## Hot water bonus heating when electricity is expensive 
+
+//every minute
+//if last triggered on+off > 2 mins ago &&
+//   hot water relay is on &&
+//     amber electric prices > 40c then
+//     turn off hot water relay
+//     set last triggered to now()
+
+## Recommendations
+
+// every minute
+// if inside humidity > X &&
+//   outside humidity < Y &&
+//   outside temp > something comfortbale (15?) &&
+//   outside temp < too hot (30?)
+//     toggle "recommend opening house" on
+
+// every minute
+// if inside humidity within ~10% of outside humidity &&
+//   currently recommending to open house
+//     toggle "recommend opening house" off
+
