@@ -53,7 +53,7 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 		condThree := (jamesOk && time.Since(jamesLastSeenAt) < 1*time.Hour) || (andreaOk && time.Since(andreaLastSeenAt) < 1*time.Hour)
 
 		kitchenCelcius, ok := state.ReadFloat64("ruuvi.kitchen.temp_celcius")
-		condFour := ok && kitchenCelcius <= 13
+		condFour := ok && kitchenCelcius <= 14
 
 		logger.Debug(fmt.Sprintf("rules: evaluating kitchenHeatingOnColdMornings - condOne: %t, condTwo: %t, condThree: %t, condFour: %t", condOne, condTwo, condThree, condFour))
 
