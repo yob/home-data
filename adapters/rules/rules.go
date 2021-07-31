@@ -26,6 +26,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		wg.Done()
 	}()
 
+	wg.Add(1)
+	go func() {
+		reccomendOpenHouse(bus, logger, state)
+		wg.Done()
+	}()
+
 	wg.Wait()
 }
 
@@ -65,6 +71,44 @@ func kitchenHeatingOnColdMornings(bus *pubsub.Pubsub, logger *logging.Logger, st
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
 				Data:  pubsub.NewKeyValueEvent("kitchenHeatingOnColdMornings_last_at", time.Now().UTC().Format(time.RFC3339)),
+			}
+		}
+	}
+}
+
+func reccomendOpenHouse(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+	publish := bus.PublishChannel()
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("rules: executing reccomendOpenHouse")
+		outsideAbsHumidity, ok := state.ReadFloat64("ruuvi.outside.absolute_humidity_g_per_m3")
+		condOne := ok && outsideAbsHumidity <= 7
+
+		kitchenAbsHumidity, ok := state.ReadFloat64("ruuvi.kitchen.absolute_humidity_g_per_m3")
+		condTwo := ok && kitchenAbsHumidity >= 9
+
+		outsideTemp, ok := state.ReadFloat64("ruuvi.outside.temp_celcius")
+		condThree := ok && outsideTemp >= 15
+
+		condFour := ok && outsideTemp < 30
+
+		lastAt, ok := state.ReadTime("reccomendOpenHouse_last_at")
+		condFive := !ok || time.Since(lastAt) > 12*time.Hour
+
+		logger.Debug(fmt.Sprintf("rules: evaluating reccomendOpenHouse - condOne: %t condTwo: %t condThree: %t condFour: %t condFive: %t", condOne, condTwo, condThree, condFour, condFive))
+
+		if condOne && condTwo && condThree && condFour && condFive {
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "email:send",
+				Data:  pubsub.NewEmailEvent("[home-data] Reccommend opening the house", "Humidity inside is high, humidity outside is low, temp outside is mild. Get some fresh air flowing!"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent("reccomendOpenHouse_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
 		}
 	}

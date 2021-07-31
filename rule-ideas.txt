@@ -105,13 +105,6 @@ every day, not only when the sun shines or power is cheap.
 ## Recommendations
 
 // every minute
-// if inside humidity > X &&
-//   outside humidity < Y &&
-//   outside temp > something comfortbale (15?) &&
-//   outside temp < too hot (30?)
-//     toggle "recommend opening house" on
-
-// every minute
 // if inside humidity within ~10% of outside humidity &&
 //   currently recommending to open house
 //     toggle "recommend opening house" off
