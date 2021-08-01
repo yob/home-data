@@ -215,7 +215,11 @@ func (ps *Pubsub) Run() {
 				select {
 				case sub.Ch <- event.Data: // send event to the subscriber, unless it is full
 				default:
-					fmt.Printf("Channel full. Discarding value (topic: %s sub: %s)\n", sub.Topic, sub.uuid)
+					message := fmt.Sprintf("Channel full. Discarding value (topic: %s sub: %s ch-len: %d ch-cap: %d (%+v))\n", sub.Topic, sub.uuid, len(sub.Ch), cap(sub.Ch), event.Data)
+					ps.publishChannel <- PubsubEvent{
+						Topic: "log:new",
+						Data:  NewKeyValueEvent("ERROR", message),
+					}
 				}
 			}
 			ps.mu.RUnlock()
