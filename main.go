@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/yob/home-data/core/config"
 	"github.com/yob/home-data/core/crdbstate"
@@ -101,6 +102,15 @@ func main() {
 	// regularly
 	go func() {
 		timers.Init(pubsub)
+	}()
+
+	// TEMP: debugging
+	go func() {
+		for {
+			length, capacity := pubsub.PublishChanStats()
+			fmt.Printf("publish - length: %d capacity: %d\n", length, capacity)
+			time.Sleep(10 * time.Second)
+		}
 	}()
 
 	// Now that core is all ready, load any adapters listed in the config file.
