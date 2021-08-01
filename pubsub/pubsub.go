@@ -212,7 +212,11 @@ func (ps *Pubsub) Run() {
 			}
 			ps.mu.RLock()
 			for _, sub := range ps.subs[event.Topic] {
-				sub.Ch <- event.Data
+				select {
+				case sub.Ch <- event.Data: // send event to the subscriber, unless it is full
+				default:
+					fmt.Printf("Channel full. Discarding value (topic: %s sub: %s)\n", sub.Topic, sub.uuid)
+				}
 			}
 			ps.mu.RUnlock()
 		case <-time.After(10 * time.Millisecond):
