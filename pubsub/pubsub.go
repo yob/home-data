@@ -179,6 +179,10 @@ func (ps *Pubsub) Subscribe(topic string) (*Subscription, error) {
 	return sub, nil
 }
 
+func (ps *Pubsub) PublishChanStats() (int, int) {
+	return len(ps.publishChannel), cap(ps.publishChannel)
+}
+
 func (ps *Pubsub) WaitUntilSubscriber(topic string, timeoutInSecs int) error {
 	startedAt := time.Now()
 
