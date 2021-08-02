@@ -8,25 +8,33 @@ import (
 	"github.com/yob/home-data/pubsub"
 )
 
+const (
+	updateBufferSize = 10
+)
+
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.State) {
 	subStateUpdate, _ := bus.Subscribe("state:update")
 	defer subStateUpdate.Close()
+
+	bufferedUpdates := make(map[string]string, updateBufferSize)
 
 	for event := range subStateUpdate.Ch {
 		if event.Type != "key-value" {
 			continue
 		}
+		bufferedUpdates[event.Key] = event.Value
 
-		stateUpdate(logger, state, event.Key, event.Value)
+		if len(subStateUpdate.Ch) == 0 || len(bufferedUpdates) == updateBufferSize {
+			stateUpdate(logger, state, bufferedUpdates)
+			bufferedUpdates = make(map[string]string, updateBufferSize)
+		}
 	}
 }
 
-func stateUpdate(logger *logging.Logger, state homestate.State, property string, value string) {
-	existingValue, ok := state.Read(property)
+func stateUpdate(logger *logging.Logger, state homestate.State, updates map[string]string) {
+	state.StoreMulti(updates)
 
-	// if the property doesn't exist in the state yet, or it exists with a different value, then update it
-	if !ok || existingValue != value {
-		state.Store(property, value)
-		logger.Debug(fmt.Sprintf("set %s to %s", property, value))
+	for k, v := range updates {
+		logger.Debug(fmt.Sprintf("set %s to %s", k, v))
 	}
 }

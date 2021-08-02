@@ -91,6 +91,35 @@ func (state *State) Store(key string, value string) error {
 	return nil
 }
 
+func (state *State) StoreMulti(updates map[string]string) error {
+	tx, err := state.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	_, err = tx.Exec("SET statement_timeout = 3000")
+	if err != nil {
+		return err
+	}
+
+	for key, value := range updates {
+		if _, err := tx.Exec(
+			"INSERT INTO values (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = excluded.value", key, value); err != nil {
+			fmt.Printf("crdb.Store: %v\n", err)
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (state *readOnlyState) Read(key string) (string, bool) {
 	return state.writeableState.Read(key)
 }

@@ -62,6 +62,13 @@ func (state *State) Store(key string, value string) error {
 	return nil
 }
 
+func (state *State) StoreMulti(updates map[string]string) error {
+	for key, value := range updates {
+		state.data.Store(key, value)
+	}
+	return nil
+}
+
 func (state *readOnlyState) Read(key string) (string, bool) {
 	return state.writeableState.Read(key)
 }

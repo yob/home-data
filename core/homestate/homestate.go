@@ -9,6 +9,7 @@ type State interface {
 	ReadFloat64(string) (float64, bool)
 	ReadTime(string) (time.Time, bool)
 	Store(string, string) error
+	StoreMulti(map[string]string) error
 	ReadOnly() StateReader
 }
 
