@@ -10,6 +10,9 @@ import (
 
 const (
 	channelBufferSize = 100
+
+	// ensure no single subscriber channel filling up can fill the publish channel
+	pubChannelBufferSize = channelBufferSize * 2
 )
 
 type Pubsub struct {
@@ -108,7 +111,7 @@ func NewEmailEvent(subject string, body string) EventData {
 func NewPubsub() *Pubsub {
 	ps := &Pubsub{}
 	ps.subs = make(map[string][]*Subscription)
-	ps.publishChannel = make(chan PubsubEvent, channelBufferSize)
+	ps.publishChannel = make(chan PubsubEvent, pubChannelBufferSize)
 	ps.closeSubChannel = make(chan string, channelBufferSize)
 
 	// All subscriptions we hand out include a Close() method that will signal
