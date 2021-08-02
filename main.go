@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/yob/home-data/core/config"
-	"github.com/yob/home-data/core/crdbstate"
+	_ "github.com/yob/home-data/core/crdbstate"
 	"github.com/yob/home-data/core/email"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
-	_ "github.com/yob/home-data/core/memorystate"
+	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/core/statebus"
 	"github.com/yob/home-data/core/timers"
 
@@ -36,6 +36,7 @@ func main() {
 		"unifi":   unifi.Init,
 	}
 	pubsub := pub.NewPubsub()
+	state := memorystate.New()
 
 	configPath, err := config.FindConfigPath()
 	if err != nil {
@@ -50,16 +51,6 @@ func main() {
 	coreConfig, err := configFile.Section("core")
 	if err != nil {
 		log.Fatal(fmt.Sprintf("Error reading core section from config file: %v", err))
-	}
-
-	crdbConfig, err := configFile.Section("crdb")
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Error reading crdb section from config file: %v", err))
-	}
-
-	state, err := crdbstate.New(crdbConfig)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Error initializing crdbstate: %v", err))
 	}
 
 	// all log messages printed via a single goroutine
