@@ -213,6 +213,8 @@ github.com/yob/go-amber v0.0.0-20210724233317-f8859c191f60 h1:Nu9lc07OikLxJCdvLl
 github.com/yob/go-amber v0.0.0-20210724233317-f8859c191f60/go.mod h1:K9iDIzLzh8HkT0yVP310+BbvX/HE6rQJPYyCaNrlPAs=
 github.com/yob/go-amber v0.0.0-20210724233546-2451a99b00db h1:xq1+9/wu7pq9t4pzGFVgO1vX0rt+smkxiOgka9bYYK0=
 github.com/yob/go-amber v0.0.0-20210724233546-2451a99b00db/go.mod h1:K9iDIzLzh8HkT0yVP310+BbvX/HE6rQJPYyCaNrlPAs=
+github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30 h1:EwiWmh3wf8w/oWGuJLGSRbxUt31ik6agT9jNhbWxZl4=
+github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30/go.mod h1:K9iDIzLzh8HkT0yVP310+BbvX/HE6rQJPYyCaNrlPAs=
 github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102 h1:WwvB3Q4saIakZDopz2s4fKtC5B/ipRoCXfuZu67n9dk=
 github.com/yob/go-daikin v0.0.0-20210423141610-20faf507e102/go.mod h1:EALOehq8LftWlTXjFkA/d9puGVTcjemyYu7mCW2jfow=
 github.com/yob/go-daikin v0.0.0-20210501022443-1ff7469ffc3c h1:5n3GwPmBKKTpsjpel0eSMKTUunZMh8G22TXRTsqKM6E=

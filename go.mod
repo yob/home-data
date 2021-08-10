@@ -17,7 +17,7 @@ require (
 	github.com/tidwall/gjson v1.8.1
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0
-	github.com/yob/go-amber v0.0.0-20210724233546-2451a99b00db
+	github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30
 	golang.org/x/net v0.0.0-20210716203947-853a461950ff // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 	google.golang.org/genproto v0.0.0-20210701191553-46259e63a0a9
