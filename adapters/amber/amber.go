@@ -104,18 +104,18 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 				foundCheapPrice = true
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_imports_at", price.StartTime.Format(time.RFC3339)),
+					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_at", price.StartTime.Format(time.RFC3339)),
 				}
 
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_import_price", strconv.FormatFloat(price.PerKwh, 'f', -1, 64)),
+					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_price", strconv.FormatFloat(price.PerKwh, 'f', -1, 64)),
 				}
 
 				minsUntilCheapImports := int64(price.StartTime.Sub(time.Now()) / time.Minute)
 				publish <- pubsub.PubsubEvent{
 					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.mins_until_cheap_imports", strconv.FormatInt(minsUntilCheapImports, 10)),
+					Data:  pubsub.NewKeyValueEvent("amber.general.mins_until_cheap", strconv.FormatInt(minsUntilCheapImports, 10)),
 				}
 			}
 		}
@@ -123,15 +123,15 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		if !foundCheapPrice {
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.cheap_imports_at"),
+				Data:  pubsub.NewValueEvent("amber.general.cheap_at"),
 			}
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.cheap_import_price"),
+				Data:  pubsub.NewValueEvent("amber.general.cheap_price"),
 			}
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.mins_until_cheap_imports"),
+				Data:  pubsub.NewValueEvent("amber.general.mins_until_cheap"),
 			}
 
 		}
