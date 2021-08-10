@@ -219,6 +219,7 @@ func (ps *Pubsub) Run() {
 				case sub.Ch <- event.Data: // send event to the subscriber, unless it is full
 				default:
 					message := fmt.Sprintf("Channel full. Discarding value (topic: %s sub: %s ch-len: %d ch-cap: %d (%+v))\n", sub.Topic, sub.uuid, len(sub.Ch), cap(sub.Ch), event.Data)
+					// TODO this should fail with a warning if the channel is full. Blocking here is BAD.
 					ps.publishChannel <- PubsubEvent{
 						Topic: "log:new",
 						Data:  NewKeyValueEvent("ERROR", message),
