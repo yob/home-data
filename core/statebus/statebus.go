@@ -16,25 +16,31 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.State) {
 	subStateUpdate, _ := bus.Subscribe("state:update")
 	defer subStateUpdate.Close()
 
-	bufferedUpdates := make(map[string]string, updateBufferSize)
+	subStateDelete, _ := bus.Subscribe("state:delete")
+	defer subStateDelete.Close()
 
-	for event := range subStateUpdate.Ch {
-		if event.Type != "key-value" {
-			continue
-		}
-		bufferedUpdates[event.Key] = event.Value
-
-		if len(subStateUpdate.Ch) == 0 || len(bufferedUpdates) == updateBufferSize {
-			stateUpdate(logger, state, bufferedUpdates)
-			bufferedUpdates = make(map[string]string, updateBufferSize)
+	for {
+		select {
+		case event := <-subStateUpdate.Ch:
+			if event.Type == "key-value" {
+				stateUpdate(logger, state, event.Key, event.Value)
+			}
+		case event := <-subStateDelete.Ch:
+			if event.Type == "value" {
+				stateDelete(logger, state, event.Value)
+			}
 		}
 	}
 }
 
-func stateUpdate(logger *logging.Logger, state homestate.State, updates map[string]string) {
-	state.StoreMulti(updates)
+func stateUpdate(logger *logging.Logger, state homestate.State, key string, value string) {
+	state.Store(key, value)
 
-	for k, v := range updates {
-		logger.Debug(fmt.Sprintf("set %s to %s", k, v))
-	}
+	logger.Debug(fmt.Sprintf("set %s to %s", key, value))
+}
+
+func stateDelete(logger *logging.Logger, state homestate.State, key string) {
+	state.Remove(key)
+
+	logger.Debug(fmt.Sprintf("delete %s", key))
 }

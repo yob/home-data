@@ -69,6 +69,11 @@ func (state *State) StoreMulti(updates map[string]string) error {
 	return nil
 }
 
+func (state *State) Remove(key string) error {
+	state.data.Delete(key)
+	return nil
+}
+
 func (state *readOnlyState) Read(key string) (string, bool) {
 	return state.writeableState.Read(key)
 }
