@@ -83,14 +83,14 @@ func changeState(bus *pubsub.Pubsub, logger *logging.Logger, config configData) 
 
 	for event := range subControl.Ch {
 		if event.Key == "power" && event.Value == "off" {
-			err = dev.TurnOn()
+			err = dev.TurnOff()
 			if err != nil {
 				logger.Error(fmt.Sprintf("kasa (%s): error setting power to off: %v", config.name, err))
 				continue
 			}
 			logger.Debug(fmt.Sprintf("kasa (%s): power changed to off", config.name))
 		} else if event.Key == "power" && event.Value == "on" {
-			err = dev.TurnOff()
+			err = dev.TurnOn()
 			if err != nil {
 				logger.Error(fmt.Sprintf("kasa (%s): error setting power to on: %v", config.name, err))
 				continue
