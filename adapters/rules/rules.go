@@ -32,6 +32,18 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		wg.Done()
 	}()
 
+	wg.Add(1)
+	go func() {
+		cheapPowerOn(bus, logger, state)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		cheapPowerOff(bus, logger, state)
+		wg.Done()
+	}()
+
 	wg.Wait()
 }
 
@@ -150,6 +162,72 @@ func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state homest
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
 				Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
+			}
+		}
+	}
+}
+
+func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+	publish := bus.PublishChannel()
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("rules: executing cheapPowerOn")
+		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
+		condOne := ok && amberGeneralCentsPerKwh < 18
+
+		lowPricesOn, ok := state.Read("kasa.low-prices.on")
+		condTwo := ok && lowPricesOn == "false"
+
+		logger.Debug(fmt.Sprintf("rules: evaluating cheapPowerOn - condOne: %t condTwo: %t", condOne, condTwo))
+
+		if condOne && condTwo {
+			publish <- pubsub.PubsubEvent{
+				Topic: "kasa.low-prices.control",
+				Data:  pubsub.NewKeyValueEvent("power", "on"),
+			}
+			publish <- pubsub.PubsubEvent{
+				Topic: "email:send",
+				Data:  pubsub.NewEmailEvent("[home-data] Amber prices are cheap! Enabling low-power plugs", "I did a thing"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent("cheapPowerOn_last_at", time.Now().UTC().Format(time.RFC3339)),
+			}
+		}
+	}
+}
+
+func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+	publish := bus.PublishChannel()
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("rules: executing cheapPowerOff")
+		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
+		condOne := ok && amberGeneralCentsPerKwh >= 18
+
+		lowPricesOn, ok := state.Read("kasa.low-prices.on")
+		condTwo := ok && lowPricesOn == "true"
+
+		logger.Debug(fmt.Sprintf("rules: evaluating cheapPowerOff - condOne: %t condTwo: %t", condOne, condTwo))
+
+		if condOne && condTwo {
+			publish <- pubsub.PubsubEvent{
+				Topic: "kasa.low-prices.control",
+				Data:  pubsub.NewKeyValueEvent("power", "off"),
+			}
+			publish <- pubsub.PubsubEvent{
+				Topic: "email:send",
+				Data:  pubsub.NewEmailEvent("[home-data] Amber prices aren't cheap any more! Turning off low-power plugs", "I did a thing"),
+			}
+
+			publish <- pubsub.PubsubEvent{
+				Topic: "state:update",
+				Data:  pubsub.NewKeyValueEvent("cheapPowerOff_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
 		}
 	}
