@@ -19,6 +19,7 @@ import (
 	"github.com/yob/home-data/adapters/daikin"
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
+	"github.com/yob/home-data/adapters/kasa"
 	"github.com/yob/home-data/adapters/rules"
 	"github.com/yob/home-data/adapters/ruuvi"
 	"github.com/yob/home-data/adapters/unifi"
@@ -30,6 +31,7 @@ func main() {
 		"amber":   amber.Init,
 		"daikin":  daikin.Init,
 		"datadog": datadog.Init,
+		"kasa":    kasa.Init,
 		"fronius": fronius.Init,
 		"rules":   rules.Init,
 		"ruuvi":   ruuvi.Init,

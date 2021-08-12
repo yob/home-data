@@ -12,6 +12,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
+	github.com/jaedle/golang-tplink-hs100 v0.4.1
 	github.com/lib/pq v1.10.2
 	github.com/pelletier/go-toml v1.9.3
 	github.com/tidwall/gjson v1.8.1
