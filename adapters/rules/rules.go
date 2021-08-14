@@ -178,7 +178,7 @@ func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.St
 		condOne := ok && amberGeneralCentsPerKwh < 18
 
 		lowPricesOn, ok := state.Read("kasa.low-prices.on")
-		condTwo := ok && lowPricesOn == "false"
+		condTwo := ok && lowPricesOn == "0"
 
 		logger.Debug(fmt.Sprintf("rules: evaluating cheapPowerOn - condOne: %t condTwo: %t", condOne, condTwo))
 
@@ -211,7 +211,7 @@ func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.S
 		condOne := ok && amberGeneralCentsPerKwh >= 18
 
 		lowPricesOn, ok := state.Read("kasa.low-prices.on")
-		condTwo := ok && lowPricesOn == "true"
+		condTwo := ok && lowPricesOn == "1"
 
 		logger.Debug(fmt.Sprintf("rules: evaluating cheapPowerOff - condOne: %t condTwo: %t", condOne, condTwo))
 
