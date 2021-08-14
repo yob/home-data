@@ -3,11 +3,11 @@ package amber
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	amberClient "github.com/yob/go-amber"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
@@ -20,8 +20,6 @@ const (
 )
 
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
-	publish := bus.PublishChannel()
-
 	apiToken, err := config.GetString("api_key")
 	if err != nil {
 		logger.Fatal("amber: api_key not found in config")
@@ -42,6 +40,14 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		return
 	}
 	site := sites[0]
+
+	generalCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.general.cents_per_kwh")
+	feedinCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.feedin.cents_per_kwh")
+	spotCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.general.spot_cents_per_kwh")
+	renewablesSensor := entities.NewSensorGauge(bus, "amber.general.renewables")
+	cheapAtSensor := entities.NewSensorTime(bus, "amber.general.cheap_at")
+	cheapPriceSensor := entities.NewSensorGauge(bus, "amber.general.cheap_price")
+	minsUntilCheapSensor := entities.NewSensorGauge(bus, "amber.general.mins_until_cheap")
 
 	for {
 		time.Sleep(60 * time.Second)
@@ -65,26 +71,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		}
 
 		if generalPrice.Type != "" {
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent("amber.general.cents_per_kwh", strconv.FormatFloat(generalPrice.PerKwh, 'f', -1, 64)),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent("amber.general.spot_cents_per_kwh", strconv.FormatFloat(generalPrice.SpotPerKwh, 'f', -1, 64)),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent("amber.general.renewables", strconv.FormatFloat(generalPrice.Renewables, 'f', -1, 64)),
-			}
+			generalCentsPerKwhSensor.Update(generalPrice.PerKwh)
+			spotCentsPerKwhSensor.Update(generalPrice.SpotPerKwh)
+			renewablesSensor.Update(generalPrice.Renewables)
 		}
 		if feedInPrice.Type != "" {
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent("amber.feedin.cents_per_kwh", strconv.FormatFloat(feedInPrice.PerKwh, 'f', -1, 64)),
-			}
+			feedinCentsPerKwhSensor.Update(feedInPrice.PerKwh)
 		}
 
 		// return next 12 hours of general forecasts. They'll be returned in sorted order.
@@ -102,38 +94,19 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		for _, price := range prices {
 			if price.PerKwh <= cheapImportThreshold && !foundCheapPrice {
 				foundCheapPrice = true
-				publish <- pubsub.PubsubEvent{
-					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_at", price.StartTime.Format(time.RFC3339)),
-				}
 
-				publish <- pubsub.PubsubEvent{
-					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.cheap_price", strconv.FormatFloat(price.PerKwh, 'f', -1, 64)),
-				}
+				cheapAtSensor.Update(price.StartTime)
+				cheapPriceSensor.Update(price.PerKwh)
 
-				minsUntilCheapImports := int64(price.StartTime.Sub(time.Now()) / time.Minute)
-				publish <- pubsub.PubsubEvent{
-					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent("amber.general.mins_until_cheap", strconv.FormatInt(minsUntilCheapImports, 10)),
-				}
+				minsUntilCheapImports := price.StartTime.Sub(time.Now()) / time.Minute
+				minsUntilCheapSensor.Update(float64(minsUntilCheapImports))
 			}
 		}
 
 		if !foundCheapPrice {
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.cheap_at"),
-			}
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.cheap_price"),
-			}
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:delete",
-				Data:  pubsub.NewValueEvent("amber.general.mins_until_cheap"),
-			}
-
+			cheapAtSensor.Unset()
+			cheapPriceSensor.Unset()
+			minsUntilCheapSensor.Unset()
 		}
 	}
 }
