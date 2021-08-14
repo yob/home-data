@@ -5,6 +5,7 @@ import (
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
@@ -26,8 +27,6 @@ type configData struct {
 }
 
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, configSection *conf.ConfigSection) {
-	publish := bus.PublishChannel()
-
 	config, err := newConfigFromSection(configSection)
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("unifi: %v", err))
@@ -40,6 +39,11 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		return
 	}
 	defer u.Logout()
+
+	sensors := make(map[string]*entities.SensorTime)
+	for ip, name := range config.ipMap {
+		sensors[ip] = entities.NewSensorTime(bus, fmt.Sprintf("unifi.presence.last_seen.%s", name))
+	}
 
 	for {
 		site, err := u.Site(config.unifiSite)
@@ -54,12 +58,9 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		}
 
 		for _, s := range stations {
-			if stationName, ok := config.ipMap[s.IP]; ok {
+			if sensor, ok := sensors[s.IP]; ok {
 				lastSeen := time.Unix(s.LastSeen, 0).UTC()
-				publish <- pubsub.PubsubEvent{
-					Topic: "state:update",
-					Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("unifi.presence.last_seen.%s", stationName), lastSeen.Format(time.RFC3339)),
-				}
+				sensor.Update(lastSeen)
 			}
 		}
 

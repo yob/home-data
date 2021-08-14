@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/tidwall/gjson"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
@@ -55,8 +55,6 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 }
 
 func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[string]string, jsonBody string) error {
-	publish := bus.PublishChannel()
-
 	if !gjson.Valid(jsonBody) {
 		return fmt.Errorf("invalid JSON")
 	}
@@ -64,49 +62,36 @@ func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[st
 	device_mac := gjson.Get(jsonBody, "device.address")
 
 	if ruuviName, ok := addressMap[device_mac.String()]; ok {
+		tempSensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName))
+		humiditySensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.humidity", ruuviName))
+		pressureSensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.pressure", ruuviName))
+		voltageSensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.voltage", ruuviName))
+		txpowerSensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.txpower", ruuviName))
+		dewpointSensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName))
+		absoluteHumiditySensor := entities.NewSensorGauge(bus, fmt.Sprintf("ruuvi.%s.absolute_humidity_g_per_m3", ruuviName))
+
 		temp := gjson.Get(jsonBody, "sensors.temperature")
 		humidity := gjson.Get(jsonBody, "sensors.humidity")
 		pressure := gjson.Get(jsonBody, "sensors.pressure")
 		voltage := gjson.Get(jsonBody, "sensors.voltage")
 		txpower := gjson.Get(jsonBody, "sensors.txpower")
 
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.temp_celcius", ruuviName), temp.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.humidity", ruuviName), humidity.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.pressure", ruuviName), pressure.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.voltage", ruuviName), voltage.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.txpower", ruuviName), txpower.String()),
-		}
+		tempSensor.Update(temp.Float())
+		humiditySensor.Update(humidity.Float())
+		pressureSensor.Update(pressure.Float())
+		voltageSensor.Update(voltage.Float())
+		txpowerSensor.Update(txpower.Float())
 
 		dewpoint, err := calculateDewPoint(temp.Float(), humidity.Float())
 		if err == nil {
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.dewpoint_celcius", ruuviName), strconv.FormatFloat(dewpoint, 'f', -1, 64)),
-			}
+			dewpointSensor.Update(dewpoint)
 		} else {
 			logger.Error(fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
 		}
 
 		absoluteHumidity, err := calculateAbsoluteHumidity(temp.Float(), humidity.Float())
 		if err == nil {
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("ruuvi.%s.absolute_humidity_g_per_m3", ruuviName), strconv.FormatFloat(absoluteHumidity, 'f', -1, 64)),
-			}
+			absoluteHumiditySensor.Update(absoluteHumidity)
 		} else {
 			logger.Error(fmt.Sprintf("ruuvi: error calculating absolute humidity - %v", err))
 		}

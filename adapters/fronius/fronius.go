@@ -5,19 +5,17 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/tidwall/gjson"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	pubsub "github.com/yob/home-data/pubsub"
 )
 
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
-	publish := bus.PublishChannel()
-
 	address, err := config.GetString("address")
 	if err != nil {
 		logger.Fatal("fronius: address not found in config")
@@ -26,6 +24,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 
 	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
 	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
+
+	gridDrawWattsSensor := entities.NewSensorGauge(bus, "fronius.inverter.grid_draw_watts")
+	powerWattsSensor := entities.NewSensorGauge(bus, "fronius.inverter.power_watts")
+	generationWattsSensor := entities.NewSensorGauge(bus, "fronius.inverter.generation_watts")
+	energyDayWhSensor := entities.NewSensorGauge(bus, "fronius.inverter.energy_day_watt_hours")
+	gridVoltageSensor := entities.NewSensorGauge(bus, "fronius.inverter.grid_voltage")
 
 	for {
 		time.Sleep(20 * time.Second)
@@ -48,22 +52,10 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		generationWatts := gjson.Get(jsonBody, "Body.Data.Site.P_PV")
 		energyDayWh := gjson.Get(jsonBody, "Body.Data.Site.E_Day")
 
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent("fronius.inverter.grid_draw_watts", gridDrawWatts.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent("fronius.inverter.power_watts", strconv.FormatFloat(powerWatts, 'f', -1, 64)),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent("fronius.inverter.generation_watts", generationWatts.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent("fronius.inverter.energy_day_watt_hours", energyDayWh.String()),
-		}
+		gridDrawWattsSensor.Update(gridDrawWatts.Float())
+		powerWattsSensor.Update(powerWatts)
+		generationWattsSensor.Update(generationWatts.Float())
+		energyDayWhSensor.Update(energyDayWh.Float())
 
 		resp, err = http.Get(meterDataUrl)
 		if err != nil {
@@ -77,9 +69,6 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		jsonBody = buf.String()
 
 		gridVoltage := gjson.Get(jsonBody, "Body.Data.0.Voltage_AC_Phase_1")
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent("fronius.inverter.grid_voltage", gridVoltage.String()),
-		}
+		gridVoltageSensor.Update(gridVoltage.Float())
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/jaedle/golang-tplink-hs100/pkg/configuration"
 	"github.com/jaedle/golang-tplink-hs100/pkg/hs100"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
@@ -43,8 +44,6 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 }
 
 func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config configData) {
-	publish := bus.PublishChannel()
-
 	dev := hs100.NewHs100(config.address, configuration.Default())
 
 	_, err := dev.GetName()
@@ -52,6 +51,8 @@ func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config configDat
 		logger.Fatal(fmt.Sprintf("kasa (%s): %v", config.name, err))
 		return
 	}
+
+	powerSensor := entities.NewSensorBoolean(bus, fmt.Sprintf("kasa.%s.on", config.name))
 
 	for {
 		time.Sleep(20 * time.Second)
@@ -62,10 +63,7 @@ func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config configDat
 			continue
 		}
 
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("kasa.%s.on", config.name), fmt.Sprintf("%t", on)),
-		}
+		powerSensor.Update(on)
 	}
 }
 
