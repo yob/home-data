@@ -7,6 +7,7 @@ import (
 
 	daikinClient "github.com/buxtronix/go-daikin"
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
@@ -43,12 +44,15 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 }
 
 func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config configData) {
-	publish := bus.PublishChannel()
 	d, err := daikinClient.NewNetwork(daikinClient.AddressTokenOption(config.address, config.token))
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("daikin (%s): %v", config.name, err))
 		return
 	}
+	insideTempSensor := entities.NewSensorGauge(bus, fmt.Sprintf("daikin.%s.temp_inside_celcius", config.name))
+	outsideTempSensor := entities.NewSensorGauge(bus, fmt.Sprintf("daikin.%s.temp_outside_celcius", config.name))
+	powerSensor := entities.NewSensorBoolean(bus, fmt.Sprintf("daikin.%s.power", config.name))
+	wattHoursTodaySensor := entities.NewSensorGauge(bus, fmt.Sprintf("daikin.%s.watt_hours_today", config.name))
 
 	dev := d.Devices[config.address]
 	if err := dev.GetControlInfo(); err != nil {
@@ -62,39 +66,22 @@ func broadcastState(bus *pubsub.Pubsub, logger *logging.Logger, config configDat
 			continue
 		}
 
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.temp_inside_celcius", config.name), dev.SensorInfo.HomeTemperature.String()),
-		}
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.temp_outside_celcius", config.name), dev.SensorInfo.OutsideTemperature.String()),
-		}
+		insideTempSensor.Update(float64(dev.SensorInfo.HomeTemperature))
+		outsideTempSensor.Update(float64(dev.SensorInfo.OutsideTemperature))
 
 		if err := dev.GetControlInfo(); err != nil {
 			logger.Error(fmt.Sprintf("daikin (%s): %v", config.name, err))
 			continue
 		}
 
-		var powerInt = 0 // 0 == Off, 1 == On
-		if dev.ControlInfo.Power.String() == "On" {
-			powerInt = 1
-		}
-
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.power", config.name), fmt.Sprintf("%d", powerInt)),
-		}
+		powerSensor.Update(dev.ControlInfo.Power.String() == "On")
 
 		if err := dev.GetWeekPower(); err != nil {
 			logger.Error(fmt.Sprintf("daikin (%s): %v", config.name, err))
 			continue
 		}
 
-		publish <- pubsub.PubsubEvent{
-			Topic: "state:update",
-			Data:  pubsub.NewKeyValueEvent(fmt.Sprintf("daikin.%s.watt_hours_today", config.name), dev.WeekPower.TodayWattHours.String()),
-		}
+		wattHoursTodaySensor.Update(float64(dev.WeekPower.TodayWattHours))
 
 		time.Sleep(20 * time.Second)
 	}
