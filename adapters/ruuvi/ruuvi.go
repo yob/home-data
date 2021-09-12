@@ -90,7 +90,6 @@ func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[st
 					logger.Error(fmt.Sprintf("ruuvi: error decoding advertisment (%+v)", err))
 					continue
 				}
-				logger.Debug(fmt.Sprintf("ad: %s | %+v | %+v", mac, ad, ruuviData))
 
 				if ruuviName, ok := addressMap[strings.ToLower(mac)]; ok {
 					handleRuuviAd(bus, logger, ruuviName, ruuviData)
