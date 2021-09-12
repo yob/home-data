@@ -27,6 +27,12 @@ type httpServer struct {
 func Init(bus *pubsub.Pubsub, config *conf.ConfigSection) {
 	publish := bus.PublishChannel()
 
+	listenAddr, err := config.GetString("http_listen_address")
+	if err != nil {
+		debugLog(publish, "http: error reading http_listen_address from config, defaulting to 127.0.0.1")
+		listenAddr = "127.0.0.1"
+	}
+
 	port, err := config.GetInt64("http_port")
 	if err != nil {
 		debugLog(publish, "http: error reading http_port from config, defaulting to 8080")
@@ -50,7 +56,7 @@ func Init(bus *pubsub.Pubsub, config *conf.ConfigSection) {
 
 	http.HandleFunc("/", server.ServeHTTP)
 
-	err = http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
+	err = http.ListenAndServe(fmt.Sprintf("%s:%d", listenAddr, port), nil)
 	if err != nil {
 		fatalLog(publish, fmt.Sprintf("http: unable to start http server (%v)", err))
 	}
