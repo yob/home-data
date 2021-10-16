@@ -26,21 +26,32 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		return
 	}
 
-	client := amberClient.NewClient(apiToken)
+	for {
+		time.Sleep(30 * time.Second)
 
-	ctx := context.Background()
-	sites, err := client.GetSites(ctx)
-	if err != nil {
-		logger.Fatal(fmt.Sprintf("amber: error fetching sites - %v", err))
-		return
+		client := amberClient.NewClient(apiToken)
+
+		ctx := context.Background()
+		sites, err := client.GetSites(ctx)
+		if err != nil {
+			logger.Error(fmt.Sprintf("amber: error fetching sites - %v", err))
+			continue
+		}
+
+		if len(sites) != 1 {
+			logger.Error(fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
+			continue
+		}
+		site := sites[0]
+
+		logger.Debug(fmt.Sprintf("amber: found site %s, about to start polling", site.Id))
+
+		// we typically don't expect this to return
+		startPolling(bus, logger, state, client, site)
 	}
+}
 
-	if len(sites) != 1 {
-		logger.Fatal(fmt.Sprintf("amber: found %d sites, need 1", len(sites)))
-		return
-	}
-	site := sites[0]
-
+func startPolling(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, client *amberClient.Client, site amberClient.Site) {
 	generalCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.general.cents_per_kwh")
 	feedinCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.feedin.cents_per_kwh")
 	spotCentsPerKwhSensor := entities.NewSensorGauge(bus, "amber.general.spot_cents_per_kwh")
