@@ -22,8 +22,8 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		return
 	}
 
-	powerFlowUrl := fmt.Sprintf("http://%s//solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
-	meterDataUrl := fmt.Sprintf("http://%s//solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
+	powerFlowUrl := fmt.Sprintf("http://%s/solar_api/v1/GetPowerFlowRealtimeData.fcgi", address)
+	meterDataUrl := fmt.Sprintf("http://%s/solar_api/v1/GetMeterRealtimeData.cgi?Scope=System", address)
 
 	gridDrawWattsSensor := entities.NewSensorGauge(bus, "fronius.inverter.grid_draw_watts")
 	powerWattsSensor := entities.NewSensorGauge(bus, "fronius.inverter.power_watts")
