@@ -40,6 +40,10 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 			continue
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			logger.Error(fmt.Sprintf("froniusInverter: unexpected response code %d\n", resp.StatusCode))
+			continue
+		}
 
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(resp.Body)
