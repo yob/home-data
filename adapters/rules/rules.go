@@ -6,6 +6,7 @@ import (
 	"time"
 
 	conf "github.com/yob/home-data/core/config"
+	"github.com/yob/home-data/core/entities"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/pubsub"
@@ -41,6 +42,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 	wg.Add(1)
 	go func() {
 		cheapPowerOff(bus, logger, state)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		effectivePrice(bus, logger, state)
 		wg.Done()
 	}()
 
@@ -229,6 +236,37 @@ func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.S
 				Topic: "state:update",
 				Data:  pubsub.NewKeyValueEvent("cheapPowerOff_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
+		}
+	}
+}
+
+func effectivePrice(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("rules: executing effectivePrice")
+
+		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
+		condOne := ok
+
+		gridDrawWatts, ok := state.ReadFloat64("fronius.inverter.grid_draw_watts")
+		condTwo := ok
+
+		condThree := gridDrawWatts <= 0
+
+		logger.Debug(fmt.Sprintf("rules: evaluating effectivePrice - condOne: %t condTwo: %t condThree: %t", condOne, condTwo, condThree))
+
+		effectivePriceSensor := entities.NewSensorGauge(bus, "effective_cents_per_kwh")
+
+		// We're exporting to the grid, so we're generating more than we're using and electricity is free to use!
+		if condOne && condTwo && condThree {
+			effectivePriceSensor.Update(0)
+		}
+
+		// We're importing from the grid, so we're paying grid price
+		if condOne && condTwo && !condThree {
+			effectivePriceSensor.Update(amberGeneralCentsPerKwh)
 		}
 	}
 }
