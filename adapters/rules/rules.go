@@ -140,8 +140,8 @@ func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state homest
 
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing acOffOnPriceSpikes")
-		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
-		condOne := ok && amberGeneralCentsPerKwh > 150
+		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
+		condOne := ok && effectiveCentsPerKwh > 150
 
 		logger.Debug(fmt.Sprintf("rules: evaluating acOffOnPriceSpikes - condOne: %t", condOne))
 
@@ -181,8 +181,8 @@ func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.St
 
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing cheapPowerOn")
-		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
-		condOne := ok && amberGeneralCentsPerKwh < 18
+		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
+		condOne := ok && effectiveCentsPerKwh < 18
 
 		lowPricesOn, ok := state.Read("kasa.low-prices.on")
 		condTwo := ok && lowPricesOn == "0"
@@ -196,7 +196,7 @@ func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.St
 			}
 			publish <- pubsub.PubsubEvent{
 				Topic: "email:send",
-				Data:  pubsub.NewEmailEvent("[home-data] Amber prices are cheap! Enabling low-power plugs", "I did a thing"),
+				Data:  pubsub.NewEmailEvent("[home-data] Power prices are cheap! Enabling low-power plugs", "I did a thing"),
 			}
 
 			publish <- pubsub.PubsubEvent{
@@ -214,8 +214,8 @@ func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.S
 
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing cheapPowerOff")
-		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
-		condOne := ok && amberGeneralCentsPerKwh >= 18
+		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
+		condOne := ok && effectiveCentsPerKwh >= 18
 
 		lowPricesOn, ok := state.Read("kasa.low-prices.on")
 		condTwo := ok && lowPricesOn == "1"
@@ -229,7 +229,7 @@ func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.S
 			}
 			publish <- pubsub.PubsubEvent{
 				Topic: "email:send",
-				Data:  pubsub.NewEmailEvent("[home-data] Amber prices aren't cheap any more! Turning off low-power plugs", "I did a thing"),
+				Data:  pubsub.NewEmailEvent("[home-data] Power prices aren't cheap any more! Turning off low-power plugs", "I did a thing"),
 			}
 
 			publish <- pubsub.PubsubEvent{
