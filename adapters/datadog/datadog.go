@@ -64,7 +64,7 @@ func ddSubmitGauge(logger *logging.Logger, apiKey string, appKey string, propert
 	)
 
 	nowEpoch := float64(time.Now().Unix())
-	body := *datadog.NewMetricsPayload([]datadog.Series{*datadog.NewSeries(property, [][]float64{[]float64{nowEpoch, value}})})
+	body := *datadog.NewMetricsPayload([]datadog.Series{*datadog.NewSeries(property, [][]*float64{[]*float64{&nowEpoch, &value}})})
 	configuration := datadog.NewConfiguration()
 
 	apiClient := datadog.NewAPIClient(configuration)
