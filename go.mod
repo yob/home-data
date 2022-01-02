@@ -15,7 +15,7 @@ require (
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
 	github.com/lib/pq v1.10.2
 	github.com/pelletier/go-toml v1.9.3
-	github.com/tidwall/gjson v1.8.1
+	github.com/tidwall/gjson v1.12.1
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30
