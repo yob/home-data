@@ -11,7 +11,6 @@ require (
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
-	github.com/lib/pq v1.10.2
 	github.com/pelletier/go-toml v1.9.3
 	github.com/tidwall/gjson v1.12.1
 	github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30

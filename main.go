@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/yob/home-data/core/config"
-	_ "github.com/yob/home-data/core/crdbstate"
 	"github.com/yob/home-data/core/email"
 	"github.com/yob/home-data/core/homestate"
 	"github.com/yob/home-data/core/logging"
