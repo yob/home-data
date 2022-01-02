@@ -9,7 +9,6 @@ import (
 	_ "github.com/yob/home-data/core/crdbstate"
 	"github.com/yob/home-data/core/email"
 	"github.com/yob/home-data/core/homestate"
-	"github.com/yob/home-data/core/http"
 	"github.com/yob/home-data/core/logging"
 	"github.com/yob/home-data/core/memorystate"
 	"github.com/yob/home-data/core/statebus"
@@ -21,21 +20,21 @@ import (
 	"github.com/yob/home-data/adapters/fronius"
 	"github.com/yob/home-data/adapters/kasa"
 	"github.com/yob/home-data/adapters/rules"
-	"github.com/yob/home-data/adapters/ruuvi"
+	"github.com/yob/home-data/adapters/ruuvigateway"
 	"github.com/yob/home-data/adapters/unifi"
 	pub "github.com/yob/home-data/pubsub"
 )
 
 func main() {
 	adapterFuncs := map[string]func(*pub.Pubsub, *logging.Logger, homestate.StateReader, *config.ConfigSection){
-		"amber":   amber.Init,
-		"daikin":  daikin.Init,
-		"datadog": datadog.Init,
-		"kasa":    kasa.Init,
-		"fronius": fronius.Init,
-		"rules":   rules.Init,
-		"ruuvi":   ruuvi.Init,
-		"unifi":   unifi.Init,
+		"amber":        amber.Init,
+		"daikin":       daikin.Init,
+		"datadog":      datadog.Init,
+		"kasa":         kasa.Init,
+		"fronius":      fronius.Init,
+		"rules":        rules.Init,
+		"ruuvigateway": ruuvigateway.Init,
+		"unifi":        unifi.Init,
 	}
 	pubsub := pub.NewPubsub()
 	state := memorystate.New()
@@ -81,15 +80,6 @@ func main() {
 	}()
 	// TODO is it a fatal error if email is misconfigured?
 	// TODO should we block until the email subscriber is listening?
-
-	// webserver, as an alternative way to injest events
-	go func() {
-		http.Init(pubsub, coreConfig)
-	}()
-	err = pubsub.WaitUntilSubscriber("http:register-path", 5)
-	if err != nil {
-		log.Fatal(fmt.Sprintf("Error initializing http: %v", err))
-	}
 
 	// trigger events at reliable intervals so anyone can listen to if they want to run code
 	// regularly

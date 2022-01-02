@@ -1,12 +1,15 @@
-package ruuvi
+package ruuvigateway
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/tidwall/gjson"
 	conf "github.com/yob/home-data/core/config"
@@ -19,85 +22,77 @@ import (
 )
 
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
-	publish := bus.PublishChannel()
-
-	addressMap, err := config.GetStringMap("names")
+	ip, err := config.GetString("ip")
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("ruuvi: names map not found in config - %v", err))
+		logger.Fatal("ruuvigateway: ip not found in config")
 		return
 	}
 
-	publish <- pubsub.PubsubEvent{
-		Topic: "http:register-path",
-		Data:  pubsub.NewValueEvent("/ruuvi"),
+	ruuviGatewayHistoryUrl := fmt.Sprintf("http://%s/history", ip)
+
+	addressMap, err := config.GetStringMap("names")
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("ruuvigateway: names map not found in config - %v", err))
+		return
 	}
 
-	subRequests, _ := bus.Subscribe("http-request:/ruuvi")
-	defer subRequests.Close()
+	for {
+		time.Sleep(20 * time.Second)
 
-	for event := range subRequests.Ch {
-		if event.Type != "http-request" {
+		resp, err := http.Get(ruuviGatewayHistoryUrl)
+		if err != nil {
+			logger.Error(fmt.Sprintf("ruuvigateway: %v\n", err))
 			continue
 		}
-		reqUUID := event.Key
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			logger.Error(fmt.Sprintf("ruuvigateway: unexpected response code %d\n", resp.StatusCode))
+			continue
+		}
 
-		err := handleRequest(bus, logger, addressMap, event.HttpRequest.Body)
-		if err != nil {
-			logger.Error(fmt.Sprintf("ruuvi: error handling request (%v)", err))
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		jsonBody := buf.String()
 
-			publish <- pubsub.PubsubEvent{
-				Topic: fmt.Sprintf("http-response:%s", reqUUID),
-				Data:  pubsub.NewHttpResponseEvent(400, fmt.Sprintf("ERR: %v\n", err), reqUUID),
+		if !gjson.Valid(jsonBody) {
+			logger.Error(fmt.Sprintf("ruuvigateway: invalid JSON"))
+			continue
+		}
+
+		resultTags := gjson.Get(jsonBody, "data.tags").Map()
+		for mac, macObj := range resultTags {
+
+			macData := macObj.Get("data").String()
+			macDataBytes, err := hex.DecodeString(macData)
+			if err != nil {
+				logger.Error(fmt.Sprintf("ruuvigateway: failed to decode Hex data %v", err))
+				continue
 			}
-			continue
-		}
 
-		publish <- pubsub.PubsubEvent{
-			Topic: fmt.Sprintf("http-response:%s", reqUUID),
-			Data:  pubsub.NewHttpResponseEvent(200, "OK\n", reqUUID),
-		}
-	}
-}
+			ads, err := parseAdData(macDataBytes)
+			if err != nil {
+				logger.Error(fmt.Sprintf("ruuvigateway: %+v", err))
+				continue
+			}
+			for _, ad := range ads {
+				// ruuvitags send BLE advertisements with a Type of "Manufacturer Specific" and a
+				// little endian data payload that starts with "0x99 0x04". For now we're filtering
+				// the discovered advertisements down to ruuvi only, but in the future it would be
+				// totally possible to and new checks and trigger events for non-ruuvi BLE advertisements
+				if ad.typ == adManufacturerSpecific && binary.LittleEndian.Uint16(ad.data) == 0x0499 {
+					ruuviData, err := ruuvi.Decode(macDataBytes[7:])
+					if err != nil {
+						logger.Error(fmt.Sprintf("ruuvigateway: error decoding advertisment (%+v)", err))
+						continue
+					}
 
-func handleRequest(bus *pubsub.Pubsub, logger *logging.Logger, addressMap map[string]string, jsonBody string) error {
-	if !gjson.Valid(jsonBody) {
-		return fmt.Errorf("invalid JSON")
-	}
-
-	resultTags := gjson.Get(jsonBody, "data.tags").Map()
-	for mac, macObj := range resultTags {
-
-		macData := macObj.Get("data").String()
-		macDataBytes, err := hex.DecodeString(macData)
-		if err != nil {
-			logger.Error(fmt.Sprintf("ruuvi: failed to decode Hex data %v", err))
-			continue
-		}
-
-		ads, err := parseAdData(macDataBytes)
-		if err != nil {
-			logger.Error(fmt.Sprintf("ruuvi: %+v", err))
-			continue
-		}
-		for _, ad := range ads {
-			// ruuvitags send BLE advertisements with a Type of "Manufacturer Specific" and a
-			// little endian data payload that starts with "0x99 0x04". For now we're filtering
-			// the discovered advertisements down to ruuvi only, but in the future it would be
-			// totally possible to and new checks and trigger events for non-ruuvi BLE advertisements
-			if ad.typ == adManufacturerSpecific && binary.LittleEndian.Uint16(ad.data) == 0x0499 {
-				ruuviData, err := ruuvi.Decode(macDataBytes[7:])
-				if err != nil {
-					logger.Error(fmt.Sprintf("ruuvi: error decoding advertisment (%+v)", err))
-					continue
-				}
-
-				if ruuviName, ok := addressMap[strings.ToLower(mac)]; ok {
-					handleRuuviAd(bus, logger, ruuviName, ruuviData)
+					if ruuviName, ok := addressMap[strings.ToLower(mac)]; ok {
+						handleRuuviAd(bus, logger, ruuviName, ruuviData)
+					}
 				}
 			}
 		}
 	}
-	return nil
 }
 
 func handleRuuviAd(bus *pubsub.Pubsub, logger *logging.Logger, ruuviName string, data *ruuvi.Data) {
@@ -119,14 +114,14 @@ func handleRuuviAd(bus *pubsub.Pubsub, logger *logging.Logger, ruuviName string,
 	if err == nil {
 		dewpointSensor.Update(dewpoint)
 	} else {
-		logger.Error(fmt.Sprintf("ruuvi: error calculating dewpoint - %v", err))
+		logger.Error(fmt.Sprintf("ruuvigateway: error calculating dewpoint - %v", err))
 	}
 
 	absoluteHumidity, err := calculateAbsoluteHumidity(float64(data.Temperature), float64(data.Humidity))
 	if err == nil {
 		absoluteHumiditySensor.Update(absoluteHumidity)
 	} else {
-		logger.Error(fmt.Sprintf("ruuvi: error calculating absolute humidity - %v", err))
+		logger.Error(fmt.Sprintf("ruuvigateway: error calculating absolute humidity - %v", err))
 	}
 }
 
