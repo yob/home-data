@@ -18,6 +18,7 @@ import (
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
 	"github.com/yob/home-data/adapters/kasa"
+	"github.com/yob/home-data/adapters/lifx"
 	"github.com/yob/home-data/adapters/rules"
 	"github.com/yob/home-data/adapters/ruuvigateway"
 	"github.com/yob/home-data/adapters/unifi"
@@ -30,6 +31,7 @@ func main() {
 		"daikin":       daikin.Init,
 		"datadog":      datadog.Init,
 		"kasa":         kasa.Init,
+		"lifx":         lifx.Init,
 		"fronius":      fronius.Init,
 		"rules":        rules.Init,
 		"ruuvigateway": ruuvigateway.Init,

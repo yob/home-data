@@ -15,6 +15,7 @@ require (
 	github.com/tidwall/gjson v1.12.1
 	github.com/yob/go-amber v0.0.0-20210810133545-1ac5f14aaa30
 	gitlab.com/jtaimisto/bluewalker v0.2.5
+	go.yhsif.com/lifxlan v0.3.1 // indirect
 	golang.org/x/net v0.0.0-20210716203947-853a461950ff // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20211124211545-fe61309f8881 // indirect

@@ -18,6 +18,11 @@ type SensorGauge struct {
 	topic string
 }
 
+type SensorString struct {
+	bus   *pubsub.Pubsub
+	topic string
+}
+
 type SensorTime struct {
 	bus   *pubsub.Pubsub
 	topic string
@@ -67,6 +72,29 @@ func (s *SensorGauge) Update(value float64) {
 }
 
 func (s *SensorGauge) Unset() {
+	publish := s.bus.PublishChannel()
+	publish <- pubsub.PubsubEvent{
+		Topic: "state:delete",
+		Data:  pubsub.NewValueEvent(s.topic),
+	}
+}
+
+func NewSensorString(bus *pubsub.Pubsub, topic string) *SensorString {
+	return &SensorString{
+		bus:   bus,
+		topic: topic,
+	}
+}
+
+func (s *SensorString) Update(value string) {
+	publish := s.bus.PublishChannel()
+	publish <- pubsub.PubsubEvent{
+		Topic: "state:update",
+		Data:  pubsub.NewKeyValueEvent(s.topic, value),
+	}
+}
+
+func (s *SensorString) Unset() {
 	publish := s.bus.PublishChannel()
 	publish <- pubsub.PubsubEvent{
 		Topic: "state:delete",

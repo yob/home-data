@@ -51,6 +51,12 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		wg.Done()
 	}()
 
+	wg.Add(1)
+	go func() {
+		setPowerPricesLight(bus, logger, state)
+		wg.Done()
+	}()
+
 	wg.Wait()
 }
 
@@ -267,6 +273,39 @@ func effectivePrice(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.
 		// We're importing from the grid, so we're paying grid price
 		if condOne && condTwo && !condThree {
 			effectivePriceSensor.Update(amberGeneralCentsPerKwh)
+		}
+	}
+}
+
+func setPowerPricesLight(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+	publish := bus.PublishChannel()
+	sub, _ := bus.Subscribe("every:minute")
+	defer sub.Close()
+
+	for _ = range sub.Ch {
+		logger.Debug("rules: executing setPowerPricesLight")
+		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
+		condOne := ok && effectiveCentsPerKwh < 18
+		condTwo := ok && effectiveCentsPerKwh >= 18 && effectiveCentsPerKwh < 30
+		condThree := ok && effectiveCentsPerKwh >= 30
+
+		logger.Debug(fmt.Sprintf("rules: evaluating setPowerPricesLight - condOne: %t condTwo: %t condThree: %t", condOne, condTwo, condThree))
+
+		if condOne { // green
+			publish <- pubsub.PubsubEvent{
+				Topic: "lifx.energylight.control",
+				Data:  pubsub.NewKeyValueEvent("color:set", "25197,65535,39403,3500"),
+			}
+		} else if condTwo { // orange
+			publish <- pubsub.PubsubEvent{
+				Topic: "lifx.energylight.control",
+				Data:  pubsub.NewKeyValueEvent("color:set", "4480,65535,39403,3500"),
+			}
+		} else if condThree { // red
+			publish <- pubsub.PubsubEvent{
+				Topic: "lifx.energylight.control",
+				Data:  pubsub.NewKeyValueEvent("color:set", "25197,65535,39403,3500"),
+			}
 		}
 	}
 }
