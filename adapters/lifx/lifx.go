@@ -151,8 +151,9 @@ func newConfigFromSection(configSection *conf.ConfigSection) (configData, error)
 		return configData{}, fmt.Errorf("address not found in config")
 	}
 
+	// lifx always listens on UDP port 56700
 	return configData{
-		address: address,
+		address: fmt.Sprintf("%s:56700", address),
 		name:    name,
 	}, nil
 }
