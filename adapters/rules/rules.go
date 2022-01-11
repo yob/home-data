@@ -201,11 +201,6 @@ func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.St
 				Data:  pubsub.NewKeyValueEvent("power", "on"),
 			}
 			publish <- pubsub.PubsubEvent{
-				Topic: "email:send",
-				Data:  pubsub.NewEmailEvent("[home-data] Power prices are cheap! Enabling low-power plugs", "I did a thing"),
-			}
-
-			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
 				Data:  pubsub.NewKeyValueEvent("cheapPowerOn_last_at", time.Now().UTC().Format(time.RFC3339)),
 			}
@@ -233,11 +228,6 @@ func cheapPowerOff(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.S
 				Topic: "kasa.low-prices.control",
 				Data:  pubsub.NewKeyValueEvent("power", "off"),
 			}
-			publish <- pubsub.PubsubEvent{
-				Topic: "email:send",
-				Data:  pubsub.NewEmailEvent("[home-data] Power prices aren't cheap any more! Turning off low-power plugs", "I did a thing"),
-			}
-
 			publish <- pubsub.PubsubEvent{
 				Topic: "state:update",
 				Data:  pubsub.NewKeyValueEvent("cheapPowerOff_last_at", time.Now().UTC().Format(time.RFC3339)),
