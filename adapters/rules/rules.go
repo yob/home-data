@@ -284,7 +284,7 @@ func setPowerPricesLight(bus *pubsub.Pubsub, logger *logging.Logger, state homes
 		if condOne { // green
 			publish <- pubsub.PubsubEvent{
 				Topic: "lifx.energylight.control",
-				Data:  pubsub.NewKeyValueEvent("color:set", "25197,65535,39403,3500"),
+				Data:  pubsub.NewKeyValueEvent("color:set", "26250,65535,39403,3500"),
 			}
 		} else if condTwo { // orange
 			publish <- pubsub.PubsubEvent{
@@ -294,7 +294,7 @@ func setPowerPricesLight(bus *pubsub.Pubsub, logger *logging.Logger, state homes
 		} else if condThree { // red
 			publish <- pubsub.PubsubEvent{
 				Topic: "lifx.energylight.control",
-				Data:  pubsub.NewKeyValueEvent("color:set", "25197,65535,39403,3500"),
+				Data:  pubsub.NewKeyValueEvent("color:set", "1289,65535,39403,3500"),
 			}
 		}
 	}
