@@ -21,11 +21,11 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		wg.Done()
 	}()
 
-	wg.Add(1)
-	go func() {
-		acOffOnPriceSpikes(bus, logger, state)
-		wg.Done()
-	}()
+	//wg.Add(1)
+	//go func() {
+	//	acOffOnPriceSpikes(bus, logger, state)
+	//	wg.Done()
+	//}()
 
 	wg.Add(1)
 	go func() {
@@ -139,46 +139,46 @@ func reccomendOpenHouse(bus *pubsub.Pubsub, logger *logging.Logger, state homest
 	}
 }
 
-func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
-	publish := bus.PublishChannel()
-	sub, _ := bus.Subscribe("every:minute")
-	defer sub.Close()
-
-	for _ = range sub.Ch {
-		logger.Debug("rules: executing acOffOnPriceSpikes")
-		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
-		condOne := ok && effectiveCentsPerKwh > 150
-
-		logger.Debug(fmt.Sprintf("rules: evaluating acOffOnPriceSpikes - condOne: %t", condOne))
-
-		if condOne {
-			publish <- pubsub.PubsubEvent{
-				Topic: "daikin.kitchen.control",
-				Data:  pubsub.NewKeyValueEvent("power", "off"),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "daikin.study.control",
-				Data:  pubsub.NewKeyValueEvent("power", "off"),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "daikin.lounge.control",
-				Data:  pubsub.NewKeyValueEvent("power", "off"),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "email:send",
-				Data:  pubsub.NewEmailEvent("[home-data] Price spike! AC turned off", "I did a thing"),
-			}
-
-			publish <- pubsub.PubsubEvent{
-				Topic: "state:update",
-				Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
-			}
-		}
-	}
-}
+//func acOffOnPriceSpikes(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
+//	publish := bus.PublishChannel()
+//	sub, _ := bus.Subscribe("every:minute")
+//	defer sub.Close()
+//
+//	for _ = range sub.Ch {
+//		logger.Debug("rules: executing acOffOnPriceSpikes")
+//		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
+//		condOne := ok && effectiveCentsPerKwh > 150
+//
+//		logger.Debug(fmt.Sprintf("rules: evaluating acOffOnPriceSpikes - condOne: %t", condOne))
+//
+//		if condOne {
+//			publish <- pubsub.PubsubEvent{
+//				Topic: "daikin.kitchen.control",
+//				Data:  pubsub.NewKeyValueEvent("power", "off"),
+//			}
+//
+//			publish <- pubsub.PubsubEvent{
+//				Topic: "daikin.study.control",
+//				Data:  pubsub.NewKeyValueEvent("power", "off"),
+//			}
+//
+//			publish <- pubsub.PubsubEvent{
+//				Topic: "daikin.lounge.control",
+//				Data:  pubsub.NewKeyValueEvent("power", "off"),
+//			}
+//
+//			publish <- pubsub.PubsubEvent{
+//				Topic: "email:send",
+//				Data:  pubsub.NewEmailEvent("[home-data] Price spike! AC turned off", "I did a thing"),
+//			}
+//
+//			publish <- pubsub.PubsubEvent{
+//				Topic: "state:update",
+//				Data:  pubsub.NewKeyValueEvent("acOffOnPriceSpikes_last_at", time.Now().UTC().Format(time.RFC3339)),
+//			}
+//		}
+//	}
+//}
 
 func cheapPowerOn(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader) {
 	publish := bus.PublishChannel()
