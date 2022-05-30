@@ -243,7 +243,7 @@ func effectivePrice(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing effectivePrice")
 
-		amberGeneralCentsPerKwh, ok := state.ReadFloat64("amber.general.cents_per_kwh")
+		reampedGeneralCentsPerKwh, ok := state.ReadFloat64("reamped.general.cents_per_kwh")
 		condOne := ok
 
 		gridDrawWatts, ok := state.ReadFloat64("fronius.inverter.grid_draw_watts")
@@ -262,7 +262,7 @@ func effectivePrice(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.
 
 		// We're importing from the grid, so we're paying grid price
 		if condOne && condTwo && !condThree {
-			effectivePriceSensor.Update(amberGeneralCentsPerKwh)
+			effectivePriceSensor.Update(reampedGeneralCentsPerKwh)
 		}
 	}
 }
@@ -275,9 +275,9 @@ func setPowerPricesLight(bus *pubsub.Pubsub, logger *logging.Logger, state homes
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing setPowerPricesLight")
 		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
-		condOne := ok && effectiveCentsPerKwh < 18
-		condTwo := ok && effectiveCentsPerKwh >= 18 && effectiveCentsPerKwh < 30
-		condThree := ok && effectiveCentsPerKwh >= 30
+		condOne := ok && effectiveCentsPerKwh < 17
+		condTwo := ok && effectiveCentsPerKwh >= 17 && effectiveCentsPerKwh < 28
+		condThree := ok && effectiveCentsPerKwh >= 28
 
 		logger.Debug(fmt.Sprintf("rules: evaluating setPowerPricesLight - condOne: %t condTwo: %t condThree: %t", condOne, condTwo, condThree))
 
