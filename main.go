@@ -13,7 +13,6 @@ import (
 	"github.com/yob/home-data/core/statebus"
 	"github.com/yob/home-data/core/timers"
 
-	"github.com/yob/home-data/adapters/amber"
 	"github.com/yob/home-data/adapters/daikin"
 	"github.com/yob/home-data/adapters/datadog"
 	"github.com/yob/home-data/adapters/fronius"
@@ -27,7 +26,6 @@ import (
 
 func main() {
 	adapterFuncs := map[string]func(*pub.Pubsub, *logging.Logger, homestate.StateReader, *config.ConfigSection){
-		"amber":        amber.Init,
 		"daikin":       daikin.Init,
 		"datadog":      datadog.Init,
 		"kasa":         kasa.Init,
