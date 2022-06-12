@@ -275,9 +275,9 @@ func setPowerPricesLight(bus *pubsub.Pubsub, logger *logging.Logger, state homes
 	for _ = range sub.Ch {
 		logger.Debug("rules: executing setPowerPricesLight")
 		effectiveCentsPerKwh, ok := state.ReadFloat64("effective_cents_per_kwh")
-		condOne := ok && effectiveCentsPerKwh < 17
-		condTwo := ok && effectiveCentsPerKwh >= 17 && effectiveCentsPerKwh < 28
-		condThree := ok && effectiveCentsPerKwh >= 28
+		condOne := ok && effectiveCentsPerKwh < 14
+		condTwo := ok && effectiveCentsPerKwh >= 14 && effectiveCentsPerKwh < 22
+		condThree := ok && effectiveCentsPerKwh >= 22
 
 		logger.Debug(fmt.Sprintf("rules: evaluating setPowerPricesLight - condOne: %t condTwo: %t condThree: %t", condOne, condTwo, condThree))
 
