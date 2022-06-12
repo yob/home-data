@@ -28,7 +28,7 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 			return
 		}
 		hour := time.Now().In(loc).Hour()
-		if hour < 15 || hour > 21 {
+		if hour < 15 || hour > 20 {
 			logger.Debug(fmt.Sprintf("reamped: setting price to offpeak (hour: %d)", hour))
 			generalCentsPerKwhSensor.Update(offpeakCentsPerKwh)
 		} else {
