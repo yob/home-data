@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	peakCentsPerKwh    = 28.15
-	offpeakCentsPerKwh = 17.03
+	peakCentsPerKwh    = 22.418
+	offpeakCentsPerKwh = 14.465
 	feedInCentsPerKwh  = 6.7
 )
 
