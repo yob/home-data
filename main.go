@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/yob/home-data/core/config"
@@ -24,15 +23,9 @@ import (
 	"github.com/yob/home-data/adapters/ruuvigateway"
 	"github.com/yob/home-data/adapters/unifi"
 	pub "github.com/yob/home-data/pubsub"
-
-	_ "net/http/pprof"
 )
 
 func main() {
-	go func() {
-		fmt.Println(http.ListenAndServe("0.0.0.0:6060", nil))
-	}()
-
 	adapterFuncs := map[string]func(*pub.Pubsub, *logging.Logger, homestate.StateReader, *config.ConfigSection){
 		"daikin":       daikin.Init,
 		"datadog":      datadog.Init,
