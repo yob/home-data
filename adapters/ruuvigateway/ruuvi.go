@@ -28,8 +28,6 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 		return
 	}
 
-	ruuviGatewayHistoryUrl := fmt.Sprintf("http://%s/history", ip)
-
 	addressMap, err := config.GetStringMap("names")
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("ruuvigateway: names map not found in config - %v", err))
@@ -39,56 +37,63 @@ func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReade
 	for {
 		time.Sleep(20 * time.Second)
 
-		resp, err := http.Get(ruuviGatewayHistoryUrl)
+		fetchBleHistory(bus, logger, state, ip, addressMap)
+	}
+}
+
+func fetchBleHistory(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, ip string, addressMap map[string]string) {
+	ruuviGatewayHistoryUrl := fmt.Sprintf("http://%s/history", ip)
+
+	resp, err := http.Get(ruuviGatewayHistoryUrl)
+	defer resp.Body.Close()
+
+	if err != nil {
+		logger.Error(fmt.Sprintf("ruuvigateway: %v\n", err))
+		return
+	}
+	if resp.StatusCode != 200 {
+		logger.Error(fmt.Sprintf("ruuvigateway: unexpected response code %d\n", resp.StatusCode))
+		return
+	}
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	jsonBody := buf.String()
+
+	if !gjson.Valid(jsonBody) {
+		logger.Error(fmt.Sprintf("ruuvigateway: invalid JSON"))
+		return
+	}
+
+	resultTags := gjson.Get(jsonBody, "data.tags").Map()
+	for mac, macObj := range resultTags {
+
+		macData := macObj.Get("data").String()
+		macDataBytes, err := hex.DecodeString(macData)
 		if err != nil {
-			logger.Error(fmt.Sprintf("ruuvigateway: %v\n", err))
-			continue
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			logger.Error(fmt.Sprintf("ruuvigateway: unexpected response code %d\n", resp.StatusCode))
+			logger.Error(fmt.Sprintf("ruuvigateway: failed to decode Hex data %v", err))
 			continue
 		}
 
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
-		jsonBody := buf.String()
-
-		if !gjson.Valid(jsonBody) {
-			logger.Error(fmt.Sprintf("ruuvigateway: invalid JSON"))
+		ads, err := parseAdData(macDataBytes)
+		if err != nil {
+			logger.Error(fmt.Sprintf("ruuvigateway: %+v", err))
 			continue
 		}
+		for _, ad := range ads {
+			// ruuvitags send BLE advertisements with a Type of "Manufacturer Specific" and a
+			// little endian data payload that starts with "0x99 0x04". For now we're filtering
+			// the discovered advertisements down to ruuvi only, but in the future it would be
+			// totally possible to and new checks and trigger events for non-ruuvi BLE advertisements
+			if ad.typ == adManufacturerSpecific && binary.LittleEndian.Uint16(ad.data) == 0x0499 {
+				ruuviData, err := ruuvi.Decode(macDataBytes[7:])
+				if err != nil {
+					logger.Error(fmt.Sprintf("ruuvigateway: error decoding advertisment (%+v)", err))
+					continue
+				}
 
-		resultTags := gjson.Get(jsonBody, "data.tags").Map()
-		for mac, macObj := range resultTags {
-
-			macData := macObj.Get("data").String()
-			macDataBytes, err := hex.DecodeString(macData)
-			if err != nil {
-				logger.Error(fmt.Sprintf("ruuvigateway: failed to decode Hex data %v", err))
-				continue
-			}
-
-			ads, err := parseAdData(macDataBytes)
-			if err != nil {
-				logger.Error(fmt.Sprintf("ruuvigateway: %+v", err))
-				continue
-			}
-			for _, ad := range ads {
-				// ruuvitags send BLE advertisements with a Type of "Manufacturer Specific" and a
-				// little endian data payload that starts with "0x99 0x04". For now we're filtering
-				// the discovered advertisements down to ruuvi only, but in the future it would be
-				// totally possible to and new checks and trigger events for non-ruuvi BLE advertisements
-				if ad.typ == adManufacturerSpecific && binary.LittleEndian.Uint16(ad.data) == 0x0499 {
-					ruuviData, err := ruuvi.Decode(macDataBytes[7:])
-					if err != nil {
-						logger.Error(fmt.Sprintf("ruuvigateway: error decoding advertisment (%+v)", err))
-						continue
-					}
-
-					if ruuviName, ok := addressMap[strings.ToLower(mac)]; ok {
-						handleRuuviAd(bus, logger, ruuviName, ruuviData)
-					}
+				if ruuviName, ok := addressMap[strings.ToLower(mac)]; ok {
+					handleRuuviAd(bus, logger, ruuviName, ruuviData)
 				}
 			}
 		}
@@ -128,7 +133,6 @@ func handleRuuviAd(bus *pubsub.Pubsub, logger *logging.Logger, ruuviName string,
 // The formula is from https://carnotcycle.wordpress.com/2012/08/04/how-to-convert-relative-humidity-to-absolute-humidity/
 // I've checked the output against the absolute humidity numbers I can see in the ruuvi android app the they're match to
 // within a few hundredths of a gram. Good enough?
-//
 func calculateAbsoluteHumidity(T float64, H float64) (float64, error) {
 	// Check if the transferred value for the temperature is within the valid range
 	if T < -45 || T > 60 {
