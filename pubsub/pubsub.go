@@ -154,12 +154,11 @@ func NewPubsub() *Pubsub {
 // the subscription is closed when it's not needed any more. A typical pattern looks
 // like this:
 //
-//   subEveryMinute, _ := bus.Subscribe("every:minute")
-//   defer subEveryMinute.Close()
-//   for event := range subEveryMinute.Ch {
-//     // do things with event
-//   }
-//
+//	subEveryMinute, _ := bus.Subscribe("every:minute")
+//	defer subEveryMinute.Close()
+//	for event := range subEveryMinute.Ch {
+//	  // do things with event
+//	}
 func (ps *Pubsub) Subscribe(topic string) (*Subscription, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
