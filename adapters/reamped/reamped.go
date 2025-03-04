@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	peakCentsPerKwh    = 22.418
-	offpeakCentsPerKwh = 14.465
-	feedInCentsPerKwh  = 6.7
+	peakCentsPerKwh    = 21.99
+	offpeakCentsPerKwh = 20.00
+	feedInCentsPerKwh  = 3.30
 )
 
 func Init(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.StateReader, config *conf.ConfigSection) {
