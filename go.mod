@@ -8,7 +8,7 @@ require (
 	github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866
 	github.com/google/uuid v1.3.0
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
-	github.com/pelletier/go-toml v1.9.3
+	github.com/pelletier/go-toml v1.9.5
 	github.com/tidwall/gjson v1.12.1
 	gitlab.com/jtaimisto/bluewalker v0.2.5
 	go.yhsif.com/lifxlan v0.3.1
