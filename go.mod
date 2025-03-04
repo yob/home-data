@@ -6,9 +6,8 @@ require (
 	github.com/DataDog/datadog-api-client-go v1.7.0
 	github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd
 	github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866
-	github.com/golang/glog v0.0.0-20210429001901-424d2337a529 // indirect
+	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
 	github.com/pelletier/go-toml v1.9.3
