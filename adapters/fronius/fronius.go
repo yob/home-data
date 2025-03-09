@@ -39,12 +39,12 @@ func fetchPowerFlow(bus *pubsub.Pubsub, logger *logging.Logger, state homestate.
 	energyDayWhSensor := entities.NewSensorGauge(bus, "fronius.inverter.energy_day_watt_hours")
 
 	resp, err := http.Get(powerFlowUrl)
-	defer resp.Body.Close()
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("froniusInverter: %v\n", err))
 		return
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		logger.Error(fmt.Sprintf("froniusInverter: unexpected response code %d\n", resp.StatusCode))
 		return
