@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-api-client-go v1.7.0
 	github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd
 	github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
 	github.com/pelletier/go-toml v1.9.3
 	github.com/tidwall/gjson v1.12.1
