@@ -3,7 +3,7 @@ module github.com/yob/home-data
 go 1.23
 
 require (
-	github.com/DataDog/datadog-api-client-go v1.7.0
+	github.com/DataDog/datadog-api-client-go v1.16.0
 	github.com/buxtronix/go-daikin v0.0.0-20190717113654-3f7a3f22ebfd
 	github.com/dim13/unifi v0.0.0-20210501215740-9c4485c65866
 	github.com/google/uuid v1.3.0
@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/DataDog/zstd v1.5.0 // indirect
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
