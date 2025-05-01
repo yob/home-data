@@ -11,7 +11,7 @@ require (
 	github.com/pelletier/go-toml v1.9.3
 	github.com/tidwall/gjson v1.12.1
 	gitlab.com/jtaimisto/bluewalker v0.2.5
-	go.yhsif.com/lifxlan v0.3.1
+	go.yhsif.com/lifxlan v0.3.4
 	gopkg.in/mail.v2 v2.3.1
 )
 
