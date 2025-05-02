@@ -10,7 +10,7 @@ require (
 	github.com/jaedle/golang-tplink-hs100 v0.4.1
 	github.com/pelletier/go-toml v1.9.3
 	github.com/tidwall/gjson v1.12.1
-	gitlab.com/jtaimisto/bluewalker v0.2.5
+	gitlab.com/jtaimisto/bluewalker v0.3.1
 	go.yhsif.com/lifxlan v0.3.1
 	gopkg.in/mail.v2 v2.3.1
 )
